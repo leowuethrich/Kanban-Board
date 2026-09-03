@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { firebaseReady } from "@/lib/firebase";
-import { AuthError, signIn } from "@/lib/auth";
+import { AuthError, sendPasswordReset, signIn } from "@/lib/auth";
 import { SiteFooter } from "./SiteFooter";
 
 // Kein Self-Signup mehr (nach Bot-Missbrauch). Konten werden in der Firebase
@@ -12,10 +12,12 @@ export function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function submit() {
     setError("");
+    setNotice("");
     if (!email.includes("@") || !password) {
       setError("Bitte E-Mail und Passwort eingeben.");
       return;
@@ -27,6 +29,22 @@ export function LoginScreen() {
     } catch (e) {
       setError(e instanceof AuthError ? e.message : "Anmeldung fehlgeschlagen.");
       setLoading(false);
+    }
+  }
+
+  async function resetPassword() {
+    setError("");
+    setNotice("");
+    if (!email.includes("@")) {
+      setError("Bitte zuerst deine E-Mail-Adresse eintragen.");
+      return;
+    }
+    try {
+      await sendPasswordReset(email);
+      setNotice("Wenn ein Konto existiert, ist eine E-Mail zum Zurücksetzen unterwegs.");
+    } catch {
+      // Keine Enumeration: immer dieselbe Meldung.
+      setNotice("Wenn ein Konto existiert, ist eine E-Mail zum Zurücksetzen unterwegs.");
     }
   }
 
@@ -201,6 +219,19 @@ export function LoginScreen() {
               {error}
             </div>
           )}
+          {notice && (
+            <div
+              style={{
+                fontSize: 14,
+                color: "var(--color-accent-2-800)",
+                background: "var(--color-accent-2-200)",
+                padding: "var(--space-2) var(--space-3)",
+                borderRadius: "var(--radius-md)",
+              }}
+            >
+              {notice}
+            </div>
+          )}
           <button
             className="btn btn-primary btn-block"
             type="submit"
@@ -209,7 +240,13 @@ export function LoginScreen() {
             {loading ? "Einen Moment …" : "Anmelden"}
           </button>
           <div style={{ fontSize: 14, color: "var(--color-neutral-600)" }}>
-            <a href="#" onClick={(e) => e.preventDefault()}>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                void resetPassword();
+              }}
+            >
               Passwort vergessen?
             </a>
           </div>

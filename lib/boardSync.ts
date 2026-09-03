@@ -1,4 +1,5 @@
 import {
+  deleteDoc,
   doc,
   onSnapshot,
   serverTimestamp,
@@ -70,4 +71,11 @@ export async function saveBoard(uid: string, state: PersistState): Promise<void>
   const db = getDb();
   if (!db) return;
   await setDoc(doc(db, COLLECTION, uid), { ...state, updatedAt: serverTimestamp() });
+}
+
+/** Board-Dokument des Nutzers löschen (beim Konto-Löschen). */
+export async function deleteBoard(uid: string): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  await deleteDoc(doc(db, COLLECTION, uid));
 }

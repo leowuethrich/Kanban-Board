@@ -13,7 +13,8 @@ service cloud.firestore {
 
     match /boards/{uid} {
       allow read: if isOwner(uid);
-      allow write: if isOwner(uid) && isWellFormedBoard(request.resource.data);
+      allow create, update: if isOwner(uid) && isWellFormedBoard(request.resource.data);
+      allow delete: if isOwner(uid); // beim Konto-Löschen
     }
 
     // AI-Nutzungszähler pro Nutzer. Der Server schreibt mit einem Service-

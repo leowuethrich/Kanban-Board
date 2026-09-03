@@ -1,11 +1,17 @@
 import {
+  deleteUser,
+  EmailAuthProvider,
   onAuthStateChanged,
+  reauthenticateWithCredential,
   sendEmailVerification,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
+  updatePassword,
   type User,
 } from "firebase/auth";
 import { getFirebaseAuth } from "./firebase";
+import { deleteBoard } from "./boardSync";
 
 // Kein Self-Signup (nach Bot-Missbrauch geschlossen). Konten legt der Betreiber
 // in der Firebase Console an (Authentication → Users → Add user).
@@ -74,6 +80,63 @@ export async function signOutUser(): Promise<void> {
   await signOut(auth);
 }
 
+/** Passwort-Reset-Mail anfordern (vom Login-Screen). */
+export async function sendPasswordReset(email: string): Promise<void> {
+  const auth = getFirebaseAuth();
+  if (!auth) throw new AuthError("Firebase ist nicht konfiguriert.");
+  try {
+    await sendPasswordResetEmail(auth, email.trim());
+  } catch (e) {
+    throw new AuthError(messageFor(e));
+  }
+}
+
+/** Vor sensiblen Aktionen (Passwort ändern, Konto löschen) neu authentifizieren. */
+async function reauth(currentPassword: string): Promise<User> {
+  const auth = getFirebaseAuth();
+  const user = auth?.currentUser;
+  if (!user || !user.email) throw new AuthError("Nicht angemeldet.");
+  try {
+    const cred = EmailAuthProvider.credential(user.email, currentPassword);
+    await reauthenticateWithCredential(user, cred);
+  } catch (e) {
+    throw new AuthError(messageFor(e));
+  }
+  return user;
+}
+
+/** Passwort ändern (verlangt das aktuelle Passwort). */
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const user = await reauth(currentPassword);
+  try {
+    await updatePassword(user, newPassword);
+  } catch (e) {
+    throw new AuthError(messageFor(e));
+  }
+}
+
+/**
+ * Konto endgültig löschen: erst das Board-Dokument in Firestore, dann den
+ * Firebase-Auth-Nutzer. Verlangt das aktuelle Passwort (Firebase erzwingt
+ * eine frische Anmeldung für deleteUser).
+ */
+export async function deleteAccount(currentPassword: string): Promise<void> {
+  const user = await reauth(currentPassword);
+  try {
+    await deleteBoard(user.uid);
+  } catch {
+    // Board-Löschung nicht kritisch für den Konto-Abbau — weiter.
+  }
+  try {
+    await deleteUser(user);
+  } catch (e) {
+    throw new AuthError(messageFor(e));
+  }
+}
+
 export class AuthError extends Error {}
 
 function messageFor(e: unknown): string {
@@ -101,6 +164,8 @@ function messageFor(e: unknown): string {
     case "auth/firebase-app-check-token-is-invalid":
     case "auth/app-check-token-invalid":
       return "Sicherheitsprüfung fehlgeschlagen. Seite neu laden und erneut versuchen.";
+    case "auth/requires-recent-login":
+      return "Aus Sicherheitsgründen bitte neu anmelden und erneut versuchen.";
     default:
       return "Anmeldung fehlgeschlagen. Bitte erneut versuchen.";
   }

@@ -23,6 +23,7 @@ import { TaskEditor } from "./TaskEditor";
 import { StoryEditor } from "./StoryEditor";
 import { AiPanel } from "./AiPanel";
 import { SiteFooter } from "./SiteFooter";
+import { AccountMenu } from "./AccountMenu";
 
 const SYNC_LABEL: Record<string, string> = {
   connecting: "synchronisiert …",
@@ -193,7 +194,6 @@ export function App() {
     return <VerifyEmailScreen email={auth.user.email} onSignOut={logout} />;
   }
 
-  const initials = (auth.user.email.trim()[0] || "d").toUpperCase() + "K";
   const linkedTasks = editingStory
     ? state.tasks.filter((t) => t.storyId === editingStory.id)
     : [];
@@ -301,24 +301,7 @@ export function App() {
         >
           {aiOpen ? "Helfer ausblenden" : "AI-Helfer"}
         </button>
-        <button
-          onClick={logout}
-          title="Abmelden"
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 999,
-            border: 0,
-            cursor: "pointer",
-            background: "var(--color-accent-2-500)",
-            color: "var(--color-accent-2-100)",
-            fontFamily: "var(--font-body)",
-            fontWeight: 700,
-            fontSize: 14,
-          }}
-        >
-          {initials}
-        </button>
+        <AccountMenu email={auth.user.email} />
       </header>
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
