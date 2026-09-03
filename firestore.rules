@@ -1,0 +1,47 @@
+rules_version = '2';
+
+// Krumen — Firebase Email/Password Auth aktiv.
+// Jeder Nutzer hat genau ein Board-Dokument unter seiner eigenen UID:
+//   boards/{uid}  ⇒  nur der angemeldete Nutzer selbst darf es lesen/schreiben
+// Der Payload muss exakt die erwarteten Felder/Typen haben; Größe gedeckelt.
+// Alles außerhalb von `boards` ist gesperrt.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /boards/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if isOwner(uid) && isWellFormedBoard(request.resource.data);
+    }
+
+    // AI-Nutzungszähler pro Nutzer. Schreibt nur der Server (Admin SDK,
+    // umgeht diese Regeln); der Client darf höchstens seinen eigenen Stand lesen.
+    match /usage/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+function isOwner(uid) {
+  return request.auth != null && request.auth.uid == uid;
+}
+
+function isWellFormedBoard(d) {
+  return d.keys().hasOnly([
+           'tasks', 'taskOrder', 'stories', 'messages',
+           'nextTaskId', 'nextStoryId', 'msgSeq', 'updatedAt'
+         ])
+      && d.tasks is list && d.tasks.size() <= 500
+      && d.taskOrder is list && d.taskOrder.size() <= 500
+      && d.stories is list && d.stories.size() <= 300
+      && d.messages is list && d.messages.size() <= 320
+      && d.nextTaskId is int && d.nextTaskId >= 0
+      && d.nextStoryId is int && d.nextStoryId >= 0
+      && d.msgSeq is int && d.msgSeq >= 0
+      && d.updatedAt is int;
+}

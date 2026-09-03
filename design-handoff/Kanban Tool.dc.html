@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/organic-57deeb1a-8c3a-4f70-9e1b-7f90c1c6495c/styles.css">
+<script src="_ds/organic-57deeb1a-8c3a-4f70-9e1b-7f90c1c6495c/_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; background: var(--color-bg); }
+  a { color: var(--color-accent-700); text-decoration: none; }
+  a:hover { color: var(--color-accent-600); text-decoration: underline; }
+  @keyframes om-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes om-pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+  .om-scroll::-webkit-scrollbar { height: 10px; width: 10px; }
+  .om-scroll::-webkit-scrollbar-thumb { background: var(--color-neutral-300); border-radius: 999px; }
+</style>
+</helmet>
+
+<sc-if value="{{ loggedOut }}" hint-placeholder-val="{{ true }}">
+  <div style="min-height: 100vh; display: grid; grid-template-columns: 1.05fr .95fr; font-family: var(--font-body); color: var(--color-text); background: var(--color-bg)">
+    <div style="display: flex; flex-direction: column; justify-content: center; gap: var(--space-6); padding: 72px 64px; max-width: 640px">
+      <div style="display: flex; align-items: center; gap: var(--space-3)">
+        <div style="width: 40px; height: 40px; border-radius: 999px; background: var(--color-accent); display: grid; place-items: center; color: var(--color-accent-100); font-family: var(--font-heading); font-size: 20px">k</div>
+        <span style="font-family: var(--font-heading); font-size: 22px">Krumen</span>
+      </div>
+      <h1 style="font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 52px; line-height: 1.05; margin: 0; text-wrap: pretty">Plane dein Projekt, ohne dich zu verzetteln.</h1>
+      <p style="font-size: 18px; line-height: 1.5; margin: 0; max-width: 44ch; color: var(--color-neutral-700)">Board, Backlog, User Storys und Sprints an einem Ort — mit einem AI-Helfer, der die Story schreibt, zerlegt und schätzt.</p>
+      <div style="display: flex; flex-direction: column; gap: var(--space-2); font-size: 16px; color: var(--color-neutral-700)">
+        <span>Ein Board pro Projekt, Drag &amp; Drop über fünf Spalten</span>
+        <span>Storys mit Akzeptanzkriterien und Story Points</span>
+        <span>Sprint-Planung mit Kapazitätsanzeige</span>
+      </div>
+    </div>
+    <div style="display: grid; place-items: center; padding: 48px; background: var(--color-accent-2-200)">
+      <div class="card elev-lg" style="width: 100%; max-width: 380px; padding: var(--space-8); border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: var(--space-4)">
+        <div>
+          <div class="card-kicker" style="margin-bottom: var(--space-1)">Willkommen zurück</div>
+          <h2 style="font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 28px; margin: 0">Anmelden</h2>
+        </div>
+        <label class="field" style="display: flex; flex-direction: column; gap: var(--space-1)">
+          <span>E-Mail</span>
+          <input class="input" type="email" placeholder="du@beispiel.de" value="{{ email }}" onChange="{{ onEmail }}">
+        </label>
+        <label class="field" style="display: flex; flex-direction: column; gap: var(--space-1)">
+          <span>Passwort</span>
+          <input class="input" type="password" placeholder="••••••••" value="{{ password }}" onChange="{{ onPassword }}">
+        </label>
+        <sc-if value="{{ loginError }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size: 14px; color: var(--color-accent-700); background: var(--color-accent-200); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md)">{{ loginError }}</div>
+        </sc-if>
+        <button class="btn btn-primary btn-block" onClick="{{ onLogin }}">{{ loginLabel }}</button>
+        <div style="display: flex; justify-content: space-between; font-size: 14px; color: var(--color-neutral-600)">
+          <a href="#">Passwort vergessen?</a>
+          <a href="#">Konto anlegen</a>
+        </div>
+        <div style="border-top: 1px solid var(--color-divider); padding-top: var(--space-3); font-size: 13px; color: var(--color-neutral-600); line-height: 1.5">Demo: beliebige E-Mail und Passwort ab 4 Zeichen.</div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ loggedIn }}" hint-placeholder-val="{{ false }}">
+  <div style="height: 100vh; display: flex; flex-direction: column; font-family: var(--font-body); color: var(--color-text); background: var(--color-bg); overflow: hidden">
+
+    <header class="nav" style="display: flex; align-items: center; gap: var(--space-6); padding: var(--space-3) var(--space-6); flex: none">
+      <div class="nav-brand" style="display: flex; align-items: center; gap: var(--space-2)">
+        <div style="width: 30px; height: 30px; border-radius: 999px; background: var(--color-accent); display: grid; place-items: center; color: var(--color-accent-100); font-family: var(--font-heading); font-size: 16px">k</div>
+        <span>Krumen</span>
+      </div>
+      <div style="display: flex; gap: var(--space-1); background: var(--color-neutral-200); padding: 4px; border-radius: 999px">
+        <sc-for list="{{ tabs }}" as="tab" hint-placeholder-count="4">
+          <button onClick="{{ tab.onClick }}" style="border: 0; cursor: pointer; font-family: var(--font-body); font-size: 15px; padding: 7px 16px; border-radius: 999px; background: {{ tab.bg }}; color: {{ tab.fg }}; font-weight: {{ tab.weight }}" style-hover="opacity: .85">{{ tab.name }}</button>
+        </sc-for>
+      </div>
+      <div style="flex: 1"></div>
+      <span style="font-size: 14px; color: var(--color-neutral-600)">Projekt: Krumen Web</span>
+      <button class="btn btn-secondary" onClick="{{ toggleAi }}" style="padding: 7px 16px">{{ aiToggleLabel }}</button>
+      <button onClick="{{ onLogout }}" title="Abmelden" style="width: 34px; height: 34px; border-radius: 999px; border: 0; cursor: pointer; background: var(--color-accent-2-500); color: var(--color-accent-2-100); font-family: var(--font-body); font-weight: 700; font-size: 14px" style-hover="background: var(--color-accent-2-600)">{{ initials }}</button>
+    </header>
+
+    <div style="flex: 1; display: flex; min-height: 0">
+      <main class="om-scroll" style="flex: 1; min-width: 0; overflow: auto; padding: var(--space-6)">
+
+        <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: var(--space-6); max-width: 1000px">
+            <div>
+              <div class="card-kicker">Übersicht</div>
+              <h1 style="font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 40px; margin: var(--space-1) 0 0">Sprint 4 läuft</h1>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4)">
+              <sc-for list="{{ stats }}" as="stat" hint-placeholder-count="4">
+                <div class="card elev-sm" style="padding: var(--space-4); border-radius: var(--radius-lg)">
+                  <div style="font-family: var(--font-heading); font-size: 34px; line-height: 1">{{ stat.value }}</div>
+                  <div style="font-size: 14px; color: var(--color-neutral-700); margin-top: var(--space-1)">{{ stat.label }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div class="card elev-sm" style="padding: var(--space-6); border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: var(--space-3)">
+              <div style="display: flex; justify-content: space-between; align-items: baseline">
+                <h3 style="font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 20px; margin: 0">Fortschritt</h3>
+                <span style="font-size: 14px; color: var(--color-neutral-700)">{{ doneLabel }}</span>
+              </div>
+              <div style="height: 14px; border-radius: 999px; background: var(--color-neutral-300); overflow: hidden">
+                <div style="height: 100%; border-radius: 999px; background: var(--color-accent); width: {{ donePct }}%; transition: width .4s ease"></div>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-3); margin-top: var(--space-2)">
+                <sc-for list="{{ board }}" as="col" hint-placeholder-count="5">
+                  <div style="border-left: 3px solid var(--color-accent-2-400); padding-left: var(--space-2)">
+                    <div style="font-size: 13px; color: var(--color-neutral-600); text-transform: uppercase; letter-spacing: .06em">{{ col.name }}</div>
+                    <div style="font-family: var(--font-heading); font-size: 22px">{{ col.count }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: var(--space-4)">
+              <div class="card elev-sm" style="padding: var(--space-6); border-radius: var(--radius-lg)">
+                <h3 style="font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 20px; margin: 0 0 var(--space-3)">Epics</h3>
+                <div style="display: flex; flex-direction: column; gap: var(--space-3)">
+                  <sc-for list="{{ epicStats }}" as="ep" hint-placeholder-count="3">
+                    <div style="display: flex; align-items: center; gap: var(--space-3)">
+                      <span class="tag {{ ep.tagClass }}">{{ ep.name }}</span>
+                      <div style="flex: 1; height: 10px; border-radius: 999px; background: var(--color-neutral-300); overflow: hidden">
+                        <div style="height: 100%; background: var(--color-accent-2-500); width: {{ ep.pct }}%"></div>
+                      </div>
+                      <span style="font-size: 14px; color: var(--color-neutral-700); width: 90px; text-align: right">{{ ep.label }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div class="card elev-sm" style="padding: var(--space-6); border-radius: var(--radius-lg)">
+                <h3 style="font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 20px; margin: 0 0 var(--space-3)">Aktivität</h3>
+                <div style="display: flex; flex-direction: column; gap: var(--space-3)">
+                  <sc-for list="{{ activity }}" as="act" hint-placeholder-count="4">
+                    <div style="display: flex; gap: var(--space-3); font-size: 15px; line-height: 1.4">
+                      <span style="width: 8px; height: 8px; border-radius: 999px; background: var(--color-accent); flex: none; margin-top: 7px"></span>
+                      <span>{{ act.text }}<span style="color: var(--color-neutral-600)"> · {{ act.when }}</span></span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isBoard }}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; gap: var(--space-4); height: 100%">
+            <div style="display: flex; align-items: flex-end; gap: var(--space-4)">
+              <div>
+                <div class="card-kicker">Board</div>
+                <h1 style="font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 36px; margin: var(--space-1) 0 0">Krumen Web</h1>
+              </div>
+              <div style="flex: 1"></div>
+              <input class="input" placeholder="Storys durchsuchen" value="{{ query }}" onChange="{{ onQuery }}" style="max-width: 240px">
+              <button class="btn btn-primary" onClick="{{ onNewStory }}">Neue Story</button>
+            </div>
+            <div class="om-scroll" style="display: grid; grid-template-columns: repeat(5, minmax(230px, 1fr)); gap: var(--space-3); align-items: start; overflow-x: auto; padding-bottom: var(--space-3)">
+              <sc-for list="{{ board }}" as="col" hint-placeholder-count="5">
+                <div onDragOver="{{ col.onDragOver }}" onDrop="{{ col.onDrop }}" onDragLeave="{{ col.onDragLeave }}" style="background: {{ col.bg }}; border: 2px dashed {{ col.border }}; border-radius: var(--radius-lg); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-3); min-height: 220px; transition: background .15s ease">
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-1)">
+                    <span style="font-family: var(--font-heading); font-size: 16px">{{ col.name }}</span>
+                    <span style="font-size: 13px; color: var(--color-neutral-700); background: var(--color-neutral-200); padding: 2px 10px; border-radius: 999px">{{ col.count }} · {{ col.points }} P</span>
+                  </div>
+                  <sc-for list="{{ col.cards }}" as="card" hint-placeholder-count="2">
+                    <div draggable="true" onDragStart="{{ card.onDragStart }}" onDragEnd="{{ card.onDragEnd }}" onClick="{{ card.onOpen }}" class="card" style="padding: var(--space-3); border-radius: var(--radius-md); cursor: grab; box-shadow: var(--shadow-sm); opacity: {{ card.opacity }}; display: flex; flex-direction: column; gap: var(--space-2)" style-hover="box-shadow: var(--shadow-md); transform: translateY(-1px)">
+                      <div style="display: flex; align-items: center; gap: var(--space-2)">
+                        <span class="tag {{ card.tagClass }}" style="font-size: 11px">{{ card.epic }}</span>
+                        <span style="font-size: 12px; color: var(--color-neutral-600); font-variant-numeric: tabular-nums">{{ card.key }}</span>
+                      </div>
+                      <div style="font-size: 15px; line-height: 1.35; text-wrap: pretty">{{ card.title }}</div>
+                      <div style="display: flex; align-items: center; gap: var(--space-3); font-size: 13px; color: var(--color-neutral-700)">
+                        <span style="background: var(--color-accent-200); color: var(--color-accent-800); padding: 1px 9px; border-radius: 999px; font-weight: 700">{{ card.points }}</span>
+                        <span>AK {{ card.acLabel }}</span>
+                        <span>{{ card.comments }} Komm.</span>
+                      </div>
+                    </div>
+                  </sc-for>
+                  <button onClick="{{ col.onAdd }}" class="btn btn-ghost" style="justify-content: flex-start; font-size: 14px; padding: 6px var(--space-2)">+ Karte</button>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isBacklog }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: var(--space-4); max-width: 1040px">
+            <div style="display: flex; align-items: flex-end; gap: var(--space-4)">
+              <div>
+                <div class="card-kicker">Backlog</div>
+                <h1 style="font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 36px; margin: var(--space-1) 0 0">Priorisierung</h1>
+              </div>
+              <div style="flex: 1"></div>
+              <button class="btn btn-secondary" onClick="{{ onAiPrioritise }}">Mit AI priorisieren</button>
+              <button class="btn btn-primary" onClick="{{ onNewStory }}">Neue Story</button>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th style="width: 44px">#</th>
+                  <th>Story</th>
+                  <th style="width: 130px">Epic</th>
+                  <th style="width: 70px">Punkte</th>
+                  <th style="width: 70px">AK</th>
+                  <th style="width: 120px">Spalte</th>
+                  <th style="width: 96px">Rang</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ backlog }}" as="row" hint-placeholder-count="6">
+                  <tr>
+                    <td style="color: var(--color-neutral-600); font-variant-numeric: tabular-nums">{{ row.rank }}</td>
+                    <td>
+                      <button onClick="{{ row.onOpen }}" style="border: 0; background: none; padding: 0; cursor: pointer; font-family: var(--font-body); font-size: 15px; text-align: left; color: var(--color-text)" style-hover="color: var(--color-accent-700)">{{ row.title }}</button>
+                    </td>
+                    <td><span class="tag {{ row.tagClass }}" style="font-size: 11px">{{ row.epic }}</span></td>
+                    <td style="font-variant-numeric: tabular-nums">{{ row.points }}</td>
+                    <td style="color: var(--color-neutral-700)">{{ row.acLabel }}</td>
+                    <td style="color: var(--color-neutral-700)">{{ row.col }}</td>
+                    <td>
+                      <div style="display: flex; gap: var(--space-1)">
+                        <button class="btn btn-ghost" onClick="{{ row.onUp }}" style="padding: 2px 10px; font-size: 14px">↑</button>
+                        <button class="btn btn-ghost" onClick="{{ row.onDown }}" style="padding: 2px 10px; font-size: 14px">↓</button>
+                      </div>
+                    </td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isSprint }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: var(--space-4); max-width: 900px">
+            <div>
+              <div class="card-kicker">Sprint-Planung</div>
+              <h1 style="font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 36px; margin: var(--space-1) 0 0">Sprint 5 · zwei Wochen</h1>
+            </div>
+            <div class="card elev-sm" style="padding: var(--space-6); border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: var(--space-3)">
+              <div style="display: flex; justify-content: space-between; align-items: baseline">
+                <span style="font-size: 16px">Kapazität</span>
+                <span style="font-family: var(--font-heading); font-size: 22px">{{ sprintPoints }} / {{ capacity }} Punkte</span>
+              </div>
+              <div style="height: 16px; border-radius: 999px; background: var(--color-neutral-300); overflow: hidden">
+                <div style="height: 100%; border-radius: 999px; background: {{ capacityColor }}; width: {{ capacityPct }}%; transition: width .35s ease"></div>
+              </div>
+              <div style="font-size: 14px; color: var(--color-neutral-700)">{{ capacityNote }}</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-2)">
+              <sc-for list="{{ sprintRows }}" as="row" hint-placeholder-count="6">
+                <div class="card" style="padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); display: flex; flex-direction: row; align-items: center; gap: var(--space-3); box-shadow: var(--shadow-sm)">
+                  <button onClick="{{ row.onToggle }}" style="width: 26px; height: 26px; border-radius: 999px; flex: none; cursor: pointer; border: 2px solid var(--color-accent-500); background: {{ row.checkBg }}; color: var(--color-accent-100); font-size: 14px; line-height: 1">{{ row.check }}</button>
+                  <span class="tag {{ row.tagClass }}" style="font-size: 11px">{{ row.epic }}</span>
+                  <button onClick="{{ row.onOpen }}" style="flex: 1; text-align: left; border: 0; background: none; cursor: pointer; font-family: var(--font-body); font-size: 15px; color: var(--color-text)" style-hover="color: var(--color-accent-700)">{{ row.title }}</button>
+                  <span style="font-size: 13px; color: var(--color-neutral-700)">{{ row.col }}</span>
+                  <span style="background: var(--color-accent-200); color: var(--color-accent-800); padding: 1px 10px; border-radius: 999px; font-size: 13px; font-weight: 700">{{ row.points }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </main>
+
+      <sc-if value="{{ aiOpen }}" hint-placeholder-val="{{ true }}">
+        <aside style="width: 380px; flex: none; border-left: 1px solid var(--color-divider); background: var(--color-neutral-100); display: flex; flex-direction: column; min-height: 0">
+          <div style="padding: var(--space-4) var(--space-4) var(--space-3); display: flex; align-items: center; gap: var(--space-2); border-bottom: 1px solid var(--color-divider)">
+            <div style="width: 28px; height: 28px; border-radius: 999px; background: var(--color-accent-2-500); display: grid; place-items: center; color: var(--color-accent-2-100); font-family: var(--font-heading); font-size: 14px">ai</div>
+            <div style="flex: 1">
+              <div style="font-family: var(--font-heading); font-size: 17px; line-height: 1.1">Helfer</div>
+              <div style="font-size: 12px; color: var(--color-neutral-600)">kennt Board, Backlog und Sprint</div>
+            </div>
+            <button onClick="{{ toggleAi }}" class="btn btn-ghost" style="padding: 4px 10px">✕</button>
+          </div>
+          <div class="om-scroll" style="flex: 1; overflow: auto; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3)">
+            <sc-for list="{{ messages }}" as="msg" hint-placeholder-count="2">
+              <div style="align-self: {{ msg.align }}; max-width: 94%; background: {{ msg.bg }}; color: {{ msg.fg }}; padding: var(--space-3); border-radius: var(--radius-md); font-size: 14px; line-height: 1.5; animation: om-in .25s ease both; display: flex; flex-direction: column; gap: var(--space-2)">
+                <sc-if value="{{ msg.hasTitle }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-family: var(--font-heading); font-size: 15px">{{ msg.title }}</div>
+                </sc-if>
+                <sc-if value="{{ msg.hasText }}" hint-placeholder-val="{{ true }}">
+                  <div style="white-space: pre-wrap">{{ msg.text }}</div>
+                </sc-if>
+                <sc-if value="{{ msg.hasLines }}" hint-placeholder-val="{{ false }}">
+                  <div style="display: flex; flex-direction: column; gap: var(--space-1)">
+                    <sc-for list="{{ msg.lines }}" as="line" hint-placeholder-count="3">
+                      <div style="display: flex; gap: var(--space-2)"><span style="color: var(--color-accent-700)">·</span><span>{{ line }}</span></div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ msg.hasApply }}" hint-placeholder-val="{{ false }}">
+                  <button class="btn btn-primary" onClick="{{ msg.onApply }}" style="align-self: flex-start; padding: 5px 14px; font-size: 13px">{{ msg.applyLabel }}</button>
+                </sc-if>
+              </div>
+            </sc-for>
+            <sc-if value="{{ thinking }}" hint-placeholder-val="{{ false }}">
+              <div style="align-self: flex-start; font-size: 14px; color: var(--color-neutral-600); animation: om-pulse 1.2s ease infinite">denkt nach …</div>
+            </sc-if>
+          </div>
+          <div style="padding: var(--space-3) var(--space-4) var(--space-4); border-top: 1px solid var(--color-divider); display: flex; flex-direction: column; gap: var(--space-2)">
+            <div style="display: flex; flex-wrap: wrap; gap: var(--space-1)">
+              <sc-for list="{{ quickActions }}" as="qa" hint-placeholder-count="5">
+                <button onClick="{{ qa.onClick }}" style="border: 1px solid var(--color-accent-2-400); background: transparent; color: var(--color-accent-2-700); border-radius: 999px; padding: 4px 12px; font-size: 12.5px; font-family: var(--font-body); cursor: pointer" style-hover="background: var(--color-accent-2-200)">{{ qa.label }}</button>
+              </sc-for>
+            </div>
+            <div style="display: flex; gap: var(--space-2)">
+              <input class="input" placeholder="Frag den Helfer …" value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onDraftKey }}" style="flex: 1">
+              <button class="btn btn-primary" onClick="{{ onSend }}" style="padding: 8px 16px">↑</button>
+            </div>
+          </div>
+        </aside>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{ editorOpen }}" hint-placeholder-val="{{ false }}">
+      <div class="dialog-backdrop" onClick="{{ closeEditor }}" style="position: fixed; inset: 0; display: flex; justify-content: flex-end; z-index: 40">
+        <div onClick="{{ stop }}" class="om-scroll" style="width: 560px; max-width: 92vw; height: 100%; background: var(--color-bg); box-shadow: var(--shadow-lg); overflow: auto; padding: var(--space-8); display: flex; flex-direction: column; gap: var(--space-4); animation: om-in .2s ease both">
+          <div style="display: flex; align-items: center; gap: var(--space-3)">
+            <span class="tag {{ editor.tagClass }}">{{ editor.epic }}</span>
+            <span style="font-size: 13px; color: var(--color-neutral-600)">{{ editor.key }}</span>
+            <div style="flex: 1"></div>
+            <button class="btn btn-ghost" onClick="{{ closeEditor }}" style="padding: 4px 12px">✕</button>
+          </div>
+          <textarea class="input" value="{{ editor.title }}" onChange="{{ onEditTitle }}" rows="2" style="font-family: var(--font-heading); font-size: 26px; line-height: 1.2; border-radius: var(--radius-md); resize: vertical"></textarea>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-3)">
+            <label class="field" style="display: flex; flex-direction: column; gap: var(--space-1)">
+              <span>Story Points</span>
+              <select class="input" value="{{ editor.points }}" onChange="{{ onEditPoints }}">
+                <sc-for list="{{ pointOptions }}" as="p" hint-placeholder-count="6">
+                  <option value="{{ p }}">{{ p }}</option>
+                </sc-for>
+              </select>
+            </label>
+            <label class="field" style="display: flex; flex-direction: column; gap: var(--space-1)">
+              <span>Epic</span>
+              <select class="input" value="{{ editor.epic }}" onChange="{{ onEditEpic }}">
+                <sc-for list="{{ epicOptions }}" as="e" hint-placeholder-count="3">
+                  <option value="{{ e }}">{{ e }}</option>
+                </sc-for>
+              </select>
+            </label>
+            <label class="field" style="display: flex; flex-direction: column; gap: var(--space-1)">
+              <span>Spalte</span>
+              <select class="input" value="{{ editor.col }}" onChange="{{ onEditCol }}">
+                <sc-for list="{{ colOptions }}" as="c" hint-placeholder-count="5">
+                  <option value="{{ c.id }}">{{ c.name }}</option>
+                </sc-for>
+              </select>
+            </label>
+          </div>
+          <label class="field" style="display: flex; flex-direction: column; gap: var(--space-1)">
+            <span>User Story</span>
+            <textarea class="input" rows="3" value="{{ editor.story }}" onChange="{{ onEditStory }}" style="border-radius: var(--radius-md); resize: vertical; line-height: 1.5"></textarea>
+          </label>
+          <div style="display: flex; flex-direction: column; gap: var(--space-2)">
+            <div style="display: flex; align-items: baseline; gap: var(--space-2)">
+              <h3 style="font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 19px; margin: 0">Akzeptanzkriterien</h3>
+              <span style="font-size: 14px; color: var(--color-neutral-600)">{{ editor.acLabel }}</span>
+              <div style="flex: 1"></div>
+              <button class="btn btn-secondary" onClick="{{ onAiAc }}" style="padding: 4px 12px; font-size: 13px">AI ergänzen</button>
+            </div>
+            <sc-for list="{{ editorAc }}" as="ac" hint-placeholder-count="3">
+              <div style="display: flex; align-items: flex-start; gap: var(--space-2); background: var(--color-neutral-100); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md)">
+                <button onClick="{{ ac.onToggle }}" style="width: 22px; height: 22px; flex: none; margin-top: 2px; border-radius: 999px; cursor: pointer; border: 2px solid var(--color-accent-2-500); background: {{ ac.bg }}; color: var(--color-accent-2-100); font-size: 12px; line-height: 1">{{ ac.check }}</button>
+                <span style="flex: 1; font-size: 15px; line-height: 1.45; color: {{ ac.color }}; text-decoration: {{ ac.deco }}">{{ ac.text }}</span>
+                <button onClick="{{ ac.onRemove }}" class="btn btn-ghost" style="padding: 0 8px; font-size: 13px">✕</button>
+              </div>
+            </sc-for>
+            <div style="display: flex; gap: var(--space-2)">
+              <input class="input" placeholder="Kriterium hinzufügen" value="{{ acDraft }}" onChange="{{ onAcDraft }}" onKeyDown="{{ onAcKey }}" style="flex: 1">
+              <button class="btn btn-secondary" onClick="{{ onAddAc }}">+</button>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: var(--space-2)">
+            <h3 style="font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 19px; margin: 0">Kommentare</h3>
+            <sc-for list="{{ editorComments }}" as="c" hint-placeholder-count="2">
+              <div style="display: flex; gap: var(--space-3); font-size: 14px; line-height: 1.5">
+                <div style="width: 30px; height: 30px; flex: none; border-radius: 999px; background: var(--color-accent-2-300); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--color-accent-2-800)">{{ c.who }}</div>
+                <div><span style="color: var(--color-neutral-600); font-size: 12px">{{ c.when }}</span><div>{{ c.text }}</div></div>
+              </div>
+            </sc-for>
+            <div style="display: flex; gap: var(--space-2)">
+              <input class="input" placeholder="Kommentar schreiben" value="{{ commentDraft }}" onChange="{{ onCommentDraft }}" onKeyDown="{{ onCommentKey }}" style="flex: 1">
+              <button class="btn btn-secondary" onClick="{{ onAddComment }}">Senden</button>
+            </div>
+          </div>
+          <div style="display: flex; gap: var(--space-2); border-top: 1px solid var(--color-divider); padding-top: var(--space-4); margin-top: auto">
+            <button class="btn btn-primary" onClick="{{ closeEditor }}">Fertig</button>
+            <button class="btn btn-ghost" onClick="{{ onDeleteCard }}" style="color: var(--color-accent-700)">Story löschen</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</sc-if>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+const COLS = [
+  { id: "backlog", name: "Backlog" },
+  { id: "ready", name: "Bereit" },
+  { id: "doing", name: "In Arbeit" },
+  { id: "review", name: "Review" },
+  { id: "done", name: "Fertig" }
+];
+const EPICS = ["Onboarding", "Board", "AI-Helfer"];
+const TAGS = { Onboarding: "tag-accent", Board: "tag-accent-2", "AI-Helfer": "tag-neutral" };
+const TABS = [
+  { id: "overview", name: "Übersicht" },
+  { id: "board", name: "Board" },
+  { id: "backlog", name: "Backlog" },
+  { id: "sprint", name: "Sprint" }
+];
+const POINTS = [1, 2, 3, 5, 8, 13];
+
+function ac(text, done) { return { text: text, done: !!done }; }
+
+const SEED = [
+  { id: 1, key: "KR-1", col: "done", epic: "Onboarding", points: 3, sprint: true, comments: [{ who: "LM", when: "vor 3 Tagen", text: "Magic-Link kommt später, erst Passwort." }],
+    title: "Als Nutzerin kann ich mich mit E-Mail und Passwort anmelden",
+    story: "Als Nutzerin möchte ich mich mit E-Mail und Passwort anmelden, damit nur ich Zugriff auf meine Projekte habe.",
+    acs: [ac("Login mit gültigen Daten führt aufs Board", true), ac("Falsche Daten zeigen eine Fehlermeldung", true), ac("Session bleibt 30 Tage bestehen", true)] },
+  { id: 2, key: "KR-2", col: "done", epic: "Board", points: 2, sprint: true, comments: [],
+    title: "Spalten zeigen Kartenzahl und Summe der Story Points",
+    story: "Als Planende möchte ich pro Spalte Anzahl und Punkte sehen, damit ich Engpässe erkenne.",
+    acs: [ac("Zähler aktualisiert sich beim Verschieben", true), ac("Punkte summieren sich pro Spalte", true)] },
+  { id: 3, key: "KR-3", col: "review", epic: "Board", points: 5, sprint: true, comments: [{ who: "LM", when: "gestern", text: "Drop-Ziel braucht mehr Kontrast." }],
+    title: "Karten per Drag & Drop zwischen Spalten verschieben",
+    story: "Als Nutzerin möchte ich Karten ziehen, damit der Status ohne Formular aktuell bleibt.",
+    acs: [ac("Karte lässt sich in jede Spalte ziehen", true), ac("Drop-Ziel wird hervorgehoben", true), ac("Reihenfolge bleibt nach Reload erhalten", false)] },
+  { id: 4, key: "KR-4", col: "doing", epic: "AI-Helfer", points: 8, sprint: true, comments: [],
+    title: "AI-Helfer schreibt aus einem Satz eine User Story mit Akzeptanzkriterien",
+    story: "Als Product Owner möchte ich einen Satz eingeben und eine formulierte Story mit Kriterien erhalten, damit ich schneller ins Detail komme.",
+    acs: [ac("Eingabe von einem Satz genügt", true), ac("Ausgabe enthält Rolle, Wunsch, Nutzen", false), ac("Mindestens drei Akzeptanzkriterien", false), ac("Ergebnis ist per Klick übernehmbar", false)] },
+  { id: 5, key: "KR-5", col: "doing", epic: "Onboarding", points: 3, sprint: true, comments: [],
+    title: "Registrierung mit Bestätigungsmail",
+    story: "Als neue Nutzerin möchte ich ein Konto anlegen und meine Adresse bestätigen.",
+    acs: [ac("Doppelte Adressen werden abgelehnt", true), ac("Bestätigungslink läuft nach 24 h ab", false)] },
+  { id: 6, key: "KR-6", col: "ready", epic: "AI-Helfer", points: 5, sprint: true, comments: [],
+    title: "Große Story in Tasks zerlegen lassen",
+    story: "Als Entwicklerin möchte ich eine Story automatisch in Tasks zerlegen, damit ich Arbeit verteilen kann.",
+    acs: [ac("Vorschlag mit drei bis sieben Tasks", false), ac("Tasks werden als Subtasks angelegt", false)] },
+  { id: 7, key: "KR-7", col: "ready", epic: "Board", points: 2, sprint: false, comments: [],
+    title: "Storys nach Titel und Epic durchsuchen",
+    story: "Als Nutzerin möchte ich das Board filtern, damit ich in großen Projekten etwas finde.",
+    acs: [ac("Suche filtert live", false)] },
+  { id: 8, key: "KR-8", col: "backlog", epic: "AI-Helfer", points: 5, sprint: false, comments: [],
+    title: "Story Points vom Helfer schätzen lassen",
+    story: "Als Planende möchte ich einen Schätzvorschlag mit Begründung, damit Schätzungen vergleichbar sind.",
+    acs: [ac("Vorschlag nennt Punkte und Begründung", false), ac("Schätzung ist überschreibbar", false)] },
+  { id: 9, key: "KR-9", col: "backlog", epic: "Board", points: 3, sprint: false, comments: [],
+    title: "Sprint-Planung mit Kapazitätsanzeige",
+    story: "Als Solo-Planer möchte ich sehen, ob ein Sprint überbucht ist.",
+    acs: [ac("Warnung bei Überbuchung", false)] },
+  { id: 10, key: "KR-10", col: "backlog", epic: "Onboarding", points: 1, sprint: false, comments: [],
+    title: "Leeres Board erklärt den ersten Schritt",
+    story: "Als neue Nutzerin möchte ich beim leeren Board wissen, was ich zuerst tue.",
+    acs: [] }
+];
+
+class Component extends DCLogic {
+  state = {
+    screen: "login", email: "", password: "", loginError: "", loggingIn: false,
+    view: "board", query: "", cards: SEED, order: SEED.map(c => c.id),
+    dragId: null, overCol: null, editing: null, acDraft: "", commentDraft: "",
+    aiOpen: true, draft: "", thinking: false, nextId: 11,
+    messages: [{ id: 1, role: "ai", text: "Moin. Ich kenne Board, Backlog und Sprint. Willst du eine Story schreiben, etwas zerlegen oder schätzen?" }]
+  };
+
+  card(id) { return this.state.cards.find(c => c.id === id); }
+  update(id, patch) {
+    this.setState(s => ({ cards: s.cards.map(c => c.id === id ? Object.assign({}, c, patch) : c) }));
+  }
+  push(msg) {
+    this.setState(s => ({ messages: s.messages.concat([Object.assign({ id: Date.now() + Math.random(), role: "ai" }, msg)]) }));
+  }
+  reply(msg, delay) {
+    this.setState({ thinking: true });
+    clearTimeout(this._t);
+    this._t = setTimeout(() => { this.setState({ thinking: false }); this.push(msg); }, delay || 900);
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+
+  ordered() {
+    const s = this.state, q = s.query.trim().toLowerCase();
+    let list = s.order.map(id => this.card(id)).filter(Boolean);
+    if (q) list = list.filter(c => (c.title + " " + c.epic).toLowerCase().includes(q));
+    return list;
+  }
+
+  addCard(colId, title) {
+    const id = this.state.nextId;
+    const card = { id: id, key: "KR-" + id, col: colId, epic: "Board", points: 3, sprint: false,
+      comments: [], title: title || "Neue Story", story: "", acs: [] };
+    this.setState(s => ({ cards: s.cards.concat([card]), order: s.order.concat([id]), nextId: id + 1, editing: id, acDraft: "", commentDraft: "" }));
+    return id;
+  }
+
+  move(id, colId) {
+    if (!id) return;
+    this.update(id, { col: colId });
+    this.setState({ dragId: null, overCol: null });
+  }
+
+  aiAction(kind) {
+    const s = this.state;
+    const doing = this.state.cards.filter(c => c.col === "doing");
+    if (kind === "story") {
+      this.setState(s2 => ({ messages: s2.messages.concat([{ id: Date.now(), role: "me", text: "Nutzer sollen ihr Board exportieren können" }]) }));
+      this.reply({ title: "Vorschlag", text: "Als Projektverantwortliche möchte ich mein Board als CSV exportieren, damit ich den Stand außerhalb des Tools teilen kann.",
+        lines: ["Export erzeugt eine CSV mit Titel, Epic, Punkten, Spalte", "Nur Karten des aktiven Filters werden exportiert", "Download startet ohne Seitenwechsel"],
+        applyLabel: "Als Story anlegen", apply: () => {
+          const id = this.addCard("backlog", "Als Projektverantwortliche möchte ich mein Board als CSV exportieren");
+          this.update(id, { story: "Als Projektverantwortliche möchte ich mein Board als CSV exportieren, damit ich den Stand außerhalb des Tools teilen kann.", points: 3,
+            acs: [ac("Export erzeugt eine CSV mit Titel, Epic, Punkten, Spalte"), ac("Nur Karten des aktiven Filters werden exportiert"), ac("Download startet ohne Seitenwechsel")] });
+        } });
+    } else if (kind === "split") {
+      const target = doing[0] || this.state.cards[0];
+      this.reply({ title: "Zerlegung von " + target.key, text: target.title,
+        lines: ["Prompt-Vorlage für Rolle/Wunsch/Nutzen festlegen", "Endpoint anbinden und Antwort validieren", "Panel-UI mit Ladezustand", "Übernehmen-Button schreibt in die Story", "Fehlerfall: Vorschlag verwerfen"],
+        applyLabel: "Als Kriterien anhängen", apply: () => {
+          this.update(target.id, { acs: target.acs.concat([ac("Zerlegung liefert drei bis sieben Tasks"), ac("Jeder Task ist einzeln übernehmbar")]) });
+          this.setState({ editing: target.id });
+        } });
+    } else if (kind === "estimate") {
+      const target = this.state.cards.find(c => c.col === "backlog") || this.state.cards[0];
+      this.reply({ title: "Schätzung " + target.key, text: "Ich schlage 5 Punkte vor.",
+        lines: ["Vergleichbar mit KR-3 (5 P, ähnlich viele Kriterien)", "Kein neues Datenmodell nötig", "Risiko: Antwortqualität der AI"],
+        applyLabel: "5 Punkte setzen", apply: () => { this.update(target.id, { points: 5 }); } });
+    } else if (kind === "priority") {
+      this.reply({ title: "Backlog-Vorschlag", text: "Ich würde so sortieren:",
+        lines: ["KR-8 Punkte schätzen — blockiert die Sprint-Planung", "KR-9 Kapazitätsanzeige", "KR-7 Suche", "KR-10 Empty State", "KR-7 und KR-10 überschneiden sich thematisch mit Onboarding"],
+        applyLabel: "Reihenfolge übernehmen", apply: () => {
+          this.setState(s2 => {
+            const pref = [8, 9, 7, 10];
+            const rest = s2.order.filter(id => pref.indexOf(id) === -1);
+            return { order: rest.concat(pref), view: "backlog" };
+          });
+        } });
+    } else if (kind === "report") {
+      const done = this.state.cards.filter(c => c.col === "done");
+      this.reply({ title: "Sprint 4 · Status", text: done.length + " von " + this.state.cards.filter(c => c.sprint).length + " Sprint-Storys sind fertig.",
+        lines: ["In Arbeit: " + doing.length + " Storys, davon KR-4 mit 8 Punkten", "Review-Stau: KR-3 wartet seit gestern", "Offene Kriterien insgesamt: " + this.state.cards.reduce((n, c) => n + c.acs.filter(a => !a.done).length, 0)] });
+    } else if (kind === "acs") {
+      const target = this.card(s.editing);
+      if (!target) return;
+      this.setState({ aiOpen: true });
+      this.reply({ title: "Kriterien für " + target.key, text: "Drei Ergänzungen:",
+        lines: ["Fehlerfall zeigt eine verständliche Meldung", "Aktion ist per Tastatur erreichbar", "Zustand bleibt nach Reload erhalten"],
+        applyLabel: "Anhängen", apply: () => {
+          this.update(target.id, { acs: target.acs.concat([ac("Fehlerfall zeigt eine verständliche Meldung"), ac("Aktion ist per Tastatur erreichbar"), ac("Zustand bleibt nach Reload erhalten")]) });
+        } });
+    }
+  }
+
+  send() {
+    const t = this.state.draft.trim();
+    if (!t) return;
+    this.setState(s => ({ draft: "", messages: s.messages.concat([{ id: Date.now(), role: "me", text: t }]) }));
+    const low = t.toLowerCase();
+    if (low.includes("schätz") || low.includes("punkte")) return this.aiAction("estimate");
+    if (low.includes("zerleg") || low.includes("task")) return this.aiAction("split");
+    if (low.includes("priorisier") || low.includes("backlog")) return this.aiAction("priority");
+    if (low.includes("report") || low.includes("status") || low.includes("sprint")) return this.aiAction("report");
+    this.reply({ title: "Vorschlag", text: "Als Nutzerin möchte ich " + t.replace(/^ich (möchte|will) /i, "") + ", damit die Planung vollständig bleibt.",
+      lines: ["Ergebnis ist im Board sichtbar", "Zustand bleibt nach Reload erhalten", "Fehlerfall zeigt eine Meldung"],
+      applyLabel: "Als Story anlegen", apply: () => {
+        const id = this.addCard("backlog", t);
+        this.update(id, { acs: [ac("Ergebnis ist im Board sichtbar"), ac("Zustand bleibt nach Reload erhalten"), ac("Fehlerfall zeigt eine Meldung")] });
+      } });
+  }
+
+  renderVals() {
+    const s = this.state, self = this;
+    const list = this.ordered();
+    const all = s.cards;
+    const doneCards = all.filter(c => c.col === "done");
+    const totalPts = all.reduce((n, c) => n + c.points, 0);
+    const donePts = doneCards.reduce((n, c) => n + c.points, 0);
+    const sprintCards = all.filter(c => c.sprint);
+    const sprintPts = sprintCards.reduce((n, c) => n + c.points, 0);
+    const capacity = 21;
+
+    const cardVal = c => ({
+      key: c.key, title: c.title, epic: c.epic, points: c.points, tagClass: TAGS[c.epic] || "tag-neutral",
+      comments: c.comments.length, acLabel: c.acs.filter(a => a.done).length + "/" + c.acs.length,
+      opacity: s.dragId === c.id ? 0.4 : 1,
+      onDragStart: e => { e.dataTransfer.effectAllowed = "move"; self.setState({ dragId: c.id }); },
+      onDragEnd: () => self.setState({ dragId: null, overCol: null }),
+      onOpen: () => self.setState({ editing: c.id, acDraft: "", commentDraft: "" })
+    });
+
+    const board = COLS.map(col => {
+      const cs = list.filter(c => c.col === col.id);
+      const over = s.overCol === col.id;
+      return {
+        id: col.id, name: col.name, count: cs.length, points: cs.reduce((n, c) => n + c.points, 0),
+        cards: cs.map(cardVal),
+        bg: over ? "var(--color-accent-200)" : "var(--color-neutral-200)",
+        border: over ? "var(--color-accent-500)" : "transparent",
+        onDragOver: e => { e.preventDefault(); if (s.overCol !== col.id) self.setState({ overCol: col.id }); },
+        onDragLeave: () => { if (s.overCol === col.id) self.setState({ overCol: null }); },
+        onDrop: e => { e.preventDefault(); self.move(s.dragId, col.id); },
+        onAdd: () => self.addCard(col.id)
+      };
+    });
+
+    const backlog = list.map((c, i) => ({
+      rank: i + 1, title: c.title, epic: c.epic, tagClass: TAGS[c.epic] || "tag-neutral", points: c.points,
+      acLabel: c.acs.filter(a => a.done).length + "/" + c.acs.length,
+      col: (COLS.find(x => x.id === c.col) || {}).name,
+      onOpen: () => self.setState({ editing: c.id, acDraft: "", commentDraft: "" }),
+      onUp: () => self.setState(st => { const o = st.order.slice(), j = o.indexOf(c.id); if (j > 0) { o[j] = o[j - 1]; o[j - 1] = c.id; } return { order: o }; }),
+      onDown: () => self.setState(st => { const o = st.order.slice(), j = o.indexOf(c.id); if (j < o.length - 1) { o[j] = o[j + 1]; o[j + 1] = c.id; } return { order: o }; })
+    }));
+
+    const ed = this.card(s.editing);
+    const epicStats = EPICS.map(name => {
+      const cs = all.filter(c => c.epic === name);
+      const d = cs.filter(c => c.col === "done").length;
+      return { name: name, tagClass: TAGS[name], pct: cs.length ? Math.round(d / cs.length * 100) : 0, label: d + " von " + cs.length + " fertig" };
+    });
+
+    const quick = [
+      { label: "Story schreiben", kind: "story" },
+      { label: "Zerlegen", kind: "split" },
+      { label: "Schätzen", kind: "estimate" },
+      { label: "Priorisieren", kind: "priority" },
+      { label: "Sprint-Report", kind: "report" }
+    ].map(q => ({ label: q.label, onClick: () => self.aiAction(q.kind) }));
+
+    return {
+      loggedOut: s.screen === "login", loggedIn: s.screen === "app",
+      email: s.email, password: s.password, loginError: s.loginError,
+      loginLabel: s.loggingIn ? "Einen Moment …" : "Anmelden",
+      onEmail: e => this.setState({ email: e.target.value, loginError: "" }),
+      onPassword: e => this.setState({ password: e.target.value, loginError: "" }),
+      onLogin: () => {
+        if (!s.email.includes("@") || s.password.length < 4) return this.setState({ loginError: "Bitte E-Mail und ein Passwort mit vier Zeichen eingeben." });
+        this.setState({ loggingIn: true });
+        setTimeout(() => this.setState({ screen: "app", loggingIn: false }), 500);
+      },
+      onLogout: () => this.setState({ screen: "login", password: "" }),
+      initials: (s.email.trim()[0] || "d").toUpperCase() + "K",
+
+      tabs: TABS.map(t => ({
+        name: t.name, onClick: () => this.setState({ view: t.id }),
+        bg: s.view === t.id ? "var(--color-accent)" : "transparent",
+        fg: s.view === t.id ? "var(--color-accent-100)" : "var(--color-neutral-700)",
+        weight: s.view === t.id ? 700 : 500
+      })),
+      isOverview: s.view === "overview", isBoard: s.view === "board",
+      isBacklog: s.view === "backlog", isSprint: s.view === "sprint",
+
+      query: s.query, onQuery: e => this.setState({ query: e.target.value }),
+      onNewStory: () => this.addCard("backlog"),
+      board: board, backlog: backlog,
+
+      stats: [
+        { value: all.length, label: "Storys im Projekt" },
+        { value: totalPts, label: "Story Points gesamt" },
+        { value: doneCards.length, label: "fertig" },
+        { value: all.reduce((n, c) => n + c.acs.filter(a => !a.done).length, 0), label: "offene Kriterien" }
+      ],
+      donePct: totalPts ? Math.round(donePts / totalPts * 100) : 0,
+      doneLabel: donePts + " von " + totalPts + " Punkten erledigt",
+      epicStats: epicStats,
+      activity: [
+        { text: "KR-3 nach Review verschoben", when: "gestern" },
+        { text: "Helfer hat drei Kriterien zu KR-4 ergänzt", when: "gestern" },
+        { text: "KR-2 abgeschlossen", when: "vor 2 Tagen" },
+        { text: "Sprint 4 gestartet", when: "vor 9 Tagen" }
+      ],
+
+      sprintPoints: sprintPts, capacity: capacity,
+      capacityPct: Math.min(100, Math.round(sprintPts / capacity * 100)),
+      capacityColor: sprintPts > capacity ? "var(--color-accent-600)" : "var(--color-accent-2-500)",
+      capacityNote: sprintPts > capacity ? "Überbucht um " + (sprintPts - capacity) + " Punkte — nimm eine Story heraus." : "Noch " + (capacity - sprintPts) + " Punkte frei.",
+      sprintRows: list.map(c => ({
+        title: c.title, epic: c.epic, tagClass: TAGS[c.epic] || "tag-neutral", points: c.points,
+        col: (COLS.find(x => x.id === c.col) || {}).name,
+        check: c.sprint ? "✓" : "", checkBg: c.sprint ? "var(--color-accent-500)" : "transparent",
+        onToggle: () => self.update(c.id, { sprint: !c.sprint }),
+        onOpen: () => self.setState({ editing: c.id, acDraft: "", commentDraft: "" })
+      })),
+
+      aiOpen: s.aiOpen, aiToggleLabel: s.aiOpen ? "Helfer ausblenden" : "AI-Helfer",
+      toggleAi: () => this.setState({ aiOpen: !s.aiOpen }),
+      thinking: s.thinking, quickActions: quick,
+      draft: s.draft, onDraft: e => this.setState({ draft: e.target.value }),
+      onDraftKey: e => { if (e.key === "Enter") this.send(); },
+      onSend: () => this.send(),
+      messages: s.messages.map(m => ({
+        align: m.role === "me" ? "flex-end" : "flex-start",
+        bg: m.role === "me" ? "var(--color-accent-2-200)" : "var(--color-surface)",
+        fg: "var(--color-text)",
+        hasTitle: !!m.title, title: m.title || "",
+        hasText: !!m.text, text: m.text || "",
+        hasLines: !!(m.lines && m.lines.length), lines: m.lines || [],
+        hasApply: !!m.applyLabel, applyLabel: m.applyLabel || "",
+        onApply: () => { if (m.apply) m.apply(); }
+      })),
+
+      editorOpen: !!ed,
+      editor: ed ? {
+        key: ed.key, title: ed.title, epic: ed.epic, points: ed.points, col: ed.col, story: ed.story,
+        tagClass: TAGS[ed.epic] || "tag-neutral",
+        acLabel: ed.acs.filter(a => a.done).length + " von " + ed.acs.length + " erfüllt"
+      } : { key: "", title: "", epic: "", points: 3, col: "backlog", story: "", tagClass: "tag-neutral", acLabel: "" },
+      editorAc: ed ? ed.acs.map((a, i) => ({
+        text: a.text, check: a.done ? "✓" : "",
+        bg: a.done ? "var(--color-accent-2-500)" : "transparent",
+        color: a.done ? "var(--color-neutral-600)" : "var(--color-text)",
+        deco: a.done ? "line-through" : "none",
+        onToggle: () => self.update(ed.id, { acs: ed.acs.map((x, j) => j === i ? { text: x.text, done: !x.done } : x) }),
+        onRemove: () => self.update(ed.id, { acs: ed.acs.filter((x, j) => j !== i) })
+      })) : [],
+      editorComments: ed ? ed.comments : [],
+      pointOptions: POINTS, epicOptions: EPICS, colOptions: COLS,
+      onEditTitle: e => self.update(ed.id, { title: e.target.value }),
+      onEditStory: e => self.update(ed.id, { story: e.target.value }),
+      onEditPoints: e => self.update(ed.id, { points: parseInt(e.target.value, 10) }),
+      onEditEpic: e => self.update(ed.id, { epic: e.target.value }),
+      onEditCol: e => self.update(ed.id, { col: e.target.value }),
+      acDraft: s.acDraft, onAcDraft: e => this.setState({ acDraft: e.target.value }),
+      onAcKey: e => { if (e.key === "Enter") { e.preventDefault(); this.addAc(); } },
+      onAddAc: () => this.addAc(),
+      commentDraft: s.commentDraft, onCommentDraft: e => this.setState({ commentDraft: e.target.value }),
+      onCommentKey: e => { if (e.key === "Enter") { e.preventDefault(); this.addComment(); } },
+      onAddComment: () => this.addComment(),
+      onAiAc: () => this.aiAction("acs"),
+      onAiPrioritise: () => { this.setState({ aiOpen: true }); this.aiAction("priority"); },
+      onDeleteCard: () => { const id = ed.id; this.setState(st => ({ cards: st.cards.filter(c => c.id !== id), order: st.order.filter(x => x !== id), editing: null })); },
+      closeEditor: () => this.setState({ editing: null }),
+      stop: e => e.stopPropagation()
+    };
+  }
+
+  addAc() {
+    const t = this.state.acDraft.trim(), ed = this.card(this.state.editing);
+    if (!t || !ed) return;
+    this.update(ed.id, { acs: ed.acs.concat([ac(t)]) });
+    this.setState({ acDraft: "" });
+  }
+  addComment() {
+    const t = this.state.commentDraft.trim(), ed = this.card(this.state.editing);
+    if (!t || !ed) return;
+    this.update(ed.id, { comments: ed.comments.concat([{ who: "DU", when: "gerade", text: t }]) });
+    this.setState({ commentDraft: "" });
+  }
+}
+
+</script>
+</body>
+</html>
