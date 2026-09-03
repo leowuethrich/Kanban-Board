@@ -16,8 +16,10 @@ service cloud.firestore {
       allow write: if isOwner(uid) && isWellFormedBoard(request.resource.data);
     }
 
-    // AI-Nutzungszähler pro Nutzer. Schreibt nur der Server (Admin SDK,
-    // umgeht diese Regeln); der Client darf höchstens seinen eigenen Stand lesen.
+    // AI-Nutzungszähler pro Nutzer. Der Server schreibt mit einem Service-
+    // Account-OAuth-Token (datastore-Scope) — solche IAM-Zugriffe umgehen
+    // diese Regeln vollständig. Für Firebase-Auth-Clients: nur der eigene
+    // Stand lesbar, nie schreibbar.
     match /usage/{uid} {
       allow read: if isOwner(uid);
       allow write: if false;

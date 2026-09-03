@@ -1,4 +1,4 @@
-import { adminDb, AuthzError, type Caller } from "./firebaseAdmin";
+import { AuthzError, usageGet, usageSet, type Caller } from "./firebaseAdmin";
 
 /** Tageslimit für Gäste (Portfolio-Demo). Dein eigenes Konto ist ausgenommen. */
 const GUEST_DAILY_LIMIT = Number(process.env.AI_GUEST_DAILY_LIMIT || 5);
@@ -19,41 +19,21 @@ function today(): string {
 
 /**
  * Tageslimit pro Nutzer. Zählt EINEN Aufruf hoch und wirft, wenn das Limit
- * bereits erreicht war. Atomar über eine Firestore-Transaktion.
- * Owner: hohes Limit. Gäste: GUEST_DAILY_LIMIT.
+ * bereits erreicht war. Kein transaktionaler Schutz (Firestore REST) — bei
+ * exakt gleichzeitigen Anfragen kann eine zusätzliche durchrutschen. Für ein
+ * Demo-Limit gegen Missbrauch ausreichend.
  */
-export async function consumeQuota(caller: Caller): Promise<{ used: number; limit: number; owner: boolean }> {
+export async function consumeQuota(
+  caller: Caller,
+): Promise<{ used: number; limit: number; owner: boolean }> {
   const owner = isOwner(caller);
   const limit = owner ? OWNER_DAILY_LIMIT : GUEST_DAILY_LIMIT;
-
-  const db = await adminDb();
-  const { FieldValue } = await import("firebase-admin/firestore");
-  const ref = db.collection("usage").doc(caller.uid);
   const day = today();
 
-  const result = await db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const data = snap.exists ? (snap.data() as { day?: string; count?: number }) : {};
-    const count = data.day === day ? data.count ?? 0 : 0;
+  const doc = await usageGet(caller.uid);
+  const count = doc && doc.day === day ? doc.count ?? 0 : 0;
 
-    if (count >= limit) {
-      return { blocked: true as const, used: count };
-    }
-    tx.set(
-      ref,
-      {
-        day,
-        count: count + 1,
-        email: caller.email,
-        owner,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
-    return { blocked: false as const, used: count + 1 };
-  });
-
-  if (result.blocked) {
+  if (count >= limit) {
     throw new AuthzError(
       "QUOTA_EXCEEDED",
       owner
@@ -61,5 +41,7 @@ export async function consumeQuota(caller: Caller): Promise<{ used: number; limi
         : `Demo-Limit erreicht: ${limit} AI-Aufrufe pro Tag. Morgen wieder — oder eigenes Board ohne AI weiternutzen.`,
     );
   }
-  return { used: result.used, limit, owner };
+
+  await usageSet(caller.uid, { day, count: count + 1, email: caller.email, owner });
+  return { used: count + 1, limit, owner };
 }
