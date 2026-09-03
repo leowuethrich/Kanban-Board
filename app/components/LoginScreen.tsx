@@ -243,8 +243,21 @@ export function LoginScreen() {
             }}
           >
             {firebaseReady
-              ? "Portfolio-Demo — leg dir ein Konto an und probier's aus. Der AI-Assistent hat für Gäste ein kleines Tageslimit."
+              ? "Portfolio-Demo — leg dir ein Konto an und probier's aus. Der AI-Assistent hat für Gäste ein kleines Tageslimit. Bitte keine echten oder vertraulichen Daten eingeben."
               : "Firebase ist nicht konfiguriert — .env.local prüfen."}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              gap: "var(--space-3)",
+              fontSize: 12,
+              color: "var(--color-neutral-600)",
+              flexWrap: "wrap",
+            }}
+          >
+            <a href="/legal/impressum">Impressum</a>
+            <a href="/legal/datenschutz">Datenschutz</a>
+            <a href="/legal/nutzungsbedingungen">Nutzungsbedingungen</a>
           </div>
         </form>
       </div>

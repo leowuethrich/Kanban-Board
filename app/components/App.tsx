@@ -284,6 +284,18 @@ export function App() {
             </span>
           )}
         </span>
+        <a
+          href="/legal/datenschutz"
+          style={{ fontSize: 12, color: "var(--color-neutral-600)", textDecoration: "none" }}
+        >
+          Datenschutz
+        </a>
+        <a
+          href="/legal/impressum"
+          style={{ fontSize: 12, color: "var(--color-neutral-600)", textDecoration: "none" }}
+        >
+          Impressum
+        </a>
         <button
           className="btn btn-secondary"
           onClick={() => setAiOpen((v) => !v)}

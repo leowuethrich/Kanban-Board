@@ -36,3 +36,16 @@ export function getFirebaseAuth(): Auth | null {
   if (!auth) auth = getAuth(ensureApp());
   return auth;
 }
+
+/**
+ * Firebase Analytics — wird NUR nach ausdrücklicher Einwilligung geladen
+ * (Consent-Banner). Vorher passiert nichts, kein Netzwerkaufruf zu Google.
+ */
+let analyticsStarted = false;
+export async function startAnalytics(): Promise<void> {
+  if (analyticsStarted || typeof window === "undefined") return;
+  if (!firebaseReady || !config.measurementId) return;
+  analyticsStarted = true;
+  const { getAnalytics, isSupported } = await import("firebase/analytics");
+  if (await isSupported()) getAnalytics(ensureApp());
+}
