@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { firebaseReady } from "@/lib/firebase";
 import { AuthError, signIn, signUp } from "@/lib/auth";
+import { SiteFooter } from "./SiteFooter";
 
 type Mode = "signin" | "signup";
 
@@ -45,13 +46,20 @@ export function LoginScreen() {
     <div
       style={{
         minHeight: "100vh",
-        display: "grid",
-        gridTemplateColumns: "1.05fr .95fr",
+        display: "flex",
+        flexDirection: "column",
         fontFamily: "var(--font-body)",
         color: "var(--color-text)",
         background: "var(--color-bg)",
       }}
     >
+      <div
+        style={{
+          flex: 1,
+          display: "grid",
+          gridTemplateColumns: "1.05fr .95fr",
+        }}
+      >
       <div
         style={{
           display: "flex",
@@ -246,21 +254,10 @@ export function LoginScreen() {
               ? "Portfolio-Demo — leg dir ein Konto an und probier's aus. Der AI-Assistent hat für Gäste ein kleines Tageslimit. Bitte keine echten oder vertraulichen Daten eingeben."
               : "Firebase ist nicht konfiguriert — .env.local prüfen."}
           </div>
-          <div
-            style={{
-              display: "flex",
-              gap: "var(--space-3)",
-              fontSize: 12,
-              color: "var(--color-neutral-600)",
-              flexWrap: "wrap",
-            }}
-          >
-            <a href="/legal/impressum">Impressum</a>
-            <a href="/legal/datenschutz">Datenschutz</a>
-            <a href="/legal/nutzungsbedingungen">Nutzungsbedingungen</a>
-          </div>
         </form>
       </div>
+      </div>
+      <SiteFooter />
     </div>
   );
 }

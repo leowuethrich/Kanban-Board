@@ -16,6 +16,7 @@ import { SprintView } from "./SprintView";
 import { TaskEditor } from "./TaskEditor";
 import { StoryEditor } from "./StoryEditor";
 import { AiPanel } from "./AiPanel";
+import { SiteFooter } from "./SiteFooter";
 
 const SYNC_LABEL: Record<string, string> = {
   connecting: "synchronisiert …",
@@ -284,18 +285,6 @@ export function App() {
             </span>
           )}
         </span>
-        <a
-          href="/legal/datenschutz"
-          style={{ fontSize: 12, color: "var(--color-neutral-600)", textDecoration: "none" }}
-        >
-          Datenschutz
-        </a>
-        <a
-          href="/legal/impressum"
-          style={{ fontSize: 12, color: "var(--color-neutral-600)", textDecoration: "none" }}
-        >
-          Impressum
-        </a>
         <button
           className="btn btn-secondary"
           onClick={() => setAiOpen((v) => !v)}
@@ -431,6 +420,8 @@ export function App() {
           onClose={() => setEditing(null)}
         />
       )}
+
+      <SiteFooter />
     </div>
   );
 }
