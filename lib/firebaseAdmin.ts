@@ -48,9 +48,15 @@ export const adminReady = () =>
 export interface Caller {
   uid: string;
   email: string;
+  emailVerified: boolean;
 }
 
-/** Bearer-Token aus dem Header verifizieren. Wirft bei ungültig/fehlend. */
+/**
+ * Bearer-Token verifizieren. Wirft bei fehlend/ungültig und bei nicht
+ * bestätigter E-Mail. Wenn App Check erzwungen ist, verlangt Firebase
+ * zusätzlich einen gültigen App-Check-Token — dieser wird von der SDK
+ * automatisch mitgeschickt; ein ungültiger führt hier zu BAD_TOKEN.
+ */
 export async function verifyCaller(req: Request): Promise<Caller> {
   const a = adminApp();
   if (!a) throw new AuthzError("SERVER_UNCONFIGURED", "Server nicht konfiguriert (Service-Account fehlt).");
@@ -59,12 +65,22 @@ export async function verifyCaller(req: Request): Promise<Caller> {
   const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
   if (!token) throw new AuthzError("NO_TOKEN", "Nicht angemeldet.");
 
+  let decoded;
   try {
-    const decoded = await getAuth(a).verifyIdToken(token);
-    return { uid: decoded.uid, email: (decoded.email || "").toLowerCase() };
+    decoded = await getAuth(a).verifyIdToken(token);
   } catch {
     throw new AuthzError("BAD_TOKEN", "Anmeldung abgelaufen — neu einloggen.");
   }
+
+  if (!decoded.email_verified) {
+    throw new AuthzError("EMAIL_UNVERIFIED", "Bitte zuerst die E-Mail-Adresse bestätigen.");
+  }
+
+  return {
+    uid: decoded.uid,
+    email: (decoded.email || "").toLowerCase(),
+    emailVerified: true,
+  };
 }
 
 export function adminDb() {

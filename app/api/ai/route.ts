@@ -22,6 +22,7 @@ const HTTP_FOR_CODE: Record<string, number> = {
   SERVER_UNCONFIGURED: 503,
   NO_TOKEN: 401,
   BAD_TOKEN: 401,
+  EMAIL_UNVERIFIED: 403,
   QUOTA_EXCEEDED: 429,
 };
 

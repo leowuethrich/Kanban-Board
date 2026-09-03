@@ -1,23 +1,28 @@
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendEmailVerification,
   signInWithEmailAndPassword,
   signOut,
   type User,
 } from "firebase/auth";
 import { getFirebaseAuth } from "./firebase";
 
-// Signup ist offen (Portfolio-Demo). Kostenschutz gegen Missbrauch läuft
-// serverseitig über ein hartes Tages-Rate-Limit für Gäste (lib/aiGate.ts).
+// Signup offen (Portfolio-Demo), aber abgesichert:
+// - Firebase App Check (reCAPTCHA v3) blockt Bots vor jedem Auth-Aufruf
+// - E-Mail-Verifizierung ist Pflicht: ohne bestätigte Adresse kein App-Zugang
+//   und keine AI-Nutzung (serverseitig geprüft in /api/ai)
+// - Gäste-Rate-Limit pro Konto/Tag (lib/aiGate.ts)
 
 export interface SessionUser {
   uid: string;
   email: string;
+  emailVerified: boolean;
 }
 
 export function toSessionUser(u: User | null): SessionUser | null {
   if (!u) return null;
-  return { uid: u.uid, email: u.email ?? "" };
+  return { uid: u.uid, email: u.email ?? "", emailVerified: u.emailVerified };
 }
 
 /** Abo auf den Anmeldestatus. No-op ohne Config (Callback bekommt null). */
@@ -40,14 +45,38 @@ export async function signIn(email: string, password: string): Promise<void> {
   }
 }
 
+/** Konto anlegen + Bestätigungsmail senden. Der Nutzer bleibt angemeldet,
+ *  aber unverifiziert — <App> zeigt dann den Verifizierungs-Screen. */
 export async function signUp(email: string, password: string): Promise<void> {
   const auth = getFirebaseAuth();
   if (!auth) throw new AuthError("Firebase ist nicht konfiguriert.");
   try {
-    await createUserWithEmailAndPassword(auth, email.trim(), password);
+    const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+    await sendEmailVerification(cred.user);
   } catch (e) {
     throw new AuthError(messageFor(e));
   }
+}
+
+/** Bestätigungsmail erneut senden (für den Verifizierungs-Screen). */
+export async function resendVerification(): Promise<void> {
+  const auth = getFirebaseAuth();
+  const user = auth?.currentUser;
+  if (!user) throw new AuthError("Nicht angemeldet.");
+  try {
+    await sendEmailVerification(user);
+  } catch (e) {
+    throw new AuthError(messageFor(e));
+  }
+}
+
+/** Token/Status neu laden — nachdem der Nutzer die Mail bestätigt hat. */
+export async function refreshUser(): Promise<boolean> {
+  const auth = getFirebaseAuth();
+  const user = auth?.currentUser;
+  if (!user) return false;
+  await user.reload();
+  return user.emailVerified;
 }
 
 export async function signOutUser(): Promise<void> {
@@ -80,6 +109,9 @@ function messageFor(e: unknown): string {
       return "Keine Verbindung zu Firebase. Netzwerk prüfen.";
     case "auth/operation-not-allowed":
       return "E-Mail/Passwort-Anmeldung ist im Firebase-Projekt nicht aktiviert.";
+    case "auth/firebase-app-check-token-is-invalid":
+    case "auth/app-check-token-invalid":
+      return "Sicherheitsprüfung fehlgeschlagen. Seite neu laden und erneut versuchen.";
     default:
       return "Anmeldung fehlgeschlagen. Bitte erneut versuchen.";
   }

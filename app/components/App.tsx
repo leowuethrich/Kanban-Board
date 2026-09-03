@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { TABS } from "@/lib/constants";
 import { initialState, reducer } from "@/lib/store";
-import { onAuthChange, signOutUser, type SessionUser } from "@/lib/auth";
+import {
+  onAuthChange,
+  refreshUser,
+  resendVerification,
+  signOutUser,
+  type SessionUser,
+} from "@/lib/auth";
 import { useBoardSync } from "@/lib/useBoardSync";
 import { AiError, aiReady, askAi } from "@/lib/aiClient";
 import type { AiRequest, AiResult } from "@/lib/aiTypes";
@@ -183,6 +189,9 @@ export function App() {
     return <FullScreenNote>Lädt …</FullScreenNote>;
   }
   if (auth.status === "out") return <LoginScreen />;
+  if (!auth.user.emailVerified) {
+    return <VerifyEmailScreen email={auth.user.email} onSignOut={logout} />;
+  }
 
   const initials = (auth.user.email.trim()[0] || "d").toUpperCase() + "K";
   const linkedTasks = editingStory
@@ -440,6 +449,110 @@ function FullScreenNote({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+    </div>
+  );
+}
+
+function VerifyEmailScreen({ email, onSignOut }: { email: string; onSignOut: () => void }) {
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function resend() {
+    setBusy(true);
+    setMsg("");
+    try {
+      await resendVerification();
+      setMsg("Bestätigungsmail erneut gesendet. Prüfe auch den Spam-Ordner.");
+    } catch {
+      setMsg("Konnte die Mail gerade nicht senden. Bitte kurz warten.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function check() {
+    setBusy(true);
+    setMsg("");
+    const ok = await refreshUser();
+    setBusy(false);
+    if (ok) {
+      window.location.reload();
+    } else {
+      setMsg("Noch nicht bestätigt. Öffne den Link in der E-Mail und versuch es erneut.");
+    }
+  }
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        background: "var(--color-bg)",
+        color: "var(--color-text)",
+        fontFamily: "var(--font-body)",
+        padding: "var(--space-6)",
+      }}
+    >
+      <div
+        className="card elev-lg"
+        style={{
+          maxWidth: 420,
+          padding: "var(--space-8)",
+          borderRadius: "var(--radius-lg)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--space-4)",
+        }}
+      >
+        <div>
+          <div className="card-kicker" style={{ marginBottom: "var(--space-1)" }}>
+            Fast fertig
+          </div>
+          <h2
+            style={{
+              fontFamily: "var(--font-heading)",
+              fontWeight: "var(--font-heading-weight)",
+              fontSize: 26,
+              margin: 0,
+            }}
+          >
+            E-Mail bestätigen
+          </h2>
+        </div>
+        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: "var(--color-neutral-700)" }}>
+          Wir haben eine Bestätigungsmail an <strong>{email}</strong> geschickt. Klick den Link
+          darin, dann kannst du die Demo nutzen.
+        </p>
+        {msg && (
+          <div
+            style={{
+              fontSize: 14,
+              color: "var(--color-accent-700)",
+              background: "var(--color-accent-200)",
+              padding: "var(--space-2) var(--space-3)",
+              borderRadius: "var(--radius-md)",
+            }}
+          >
+            {msg}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+          <button className="btn btn-primary" onClick={() => void check()} disabled={busy}>
+            Ich habe bestätigt
+          </button>
+          <button className="btn btn-secondary" onClick={() => void resend()} disabled={busy}>
+            Mail erneut senden
+          </button>
+        </div>
+        <button
+          className="btn btn-ghost"
+          onClick={onSignOut}
+          style={{ alignSelf: "flex-start", color: "var(--color-accent-700)" }}
+        >
+          Abmelden
+        </button>
+      </div>
     </div>
   );
 }
