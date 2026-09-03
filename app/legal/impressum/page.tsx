@@ -2,14 +2,6 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Impressum — Krumen" };
 
-/*
-  ▸ VOR DEM ÖFFENTLICHEN BETRIEB AUSFÜLLEN ◂
-  Ersetze die [Platzhalter] durch deine echten Angaben. Für eine private
-  Portfolio-Demo in der Schweiz genügt eine erreichbare Kontaktmöglichkeit
-  (Name + E-Mail). Wohnadresse ist nicht zwingend, eine Kontaktadresse aber
-  empfehlenswert.
-*/
-
 export default function ImpressumPage() {
   return (
     <>
@@ -25,13 +17,11 @@ export default function ImpressumPage() {
         Verantwortlich für den Inhalt
       </h2>
       <p>
-        [Vor- und Nachname]
+        Leo Wüthrich
         <br />
-        [Strasse Nr., falls angegeben]
+        Zürich, Schweiz
         <br />
-        [PLZ Ort], Schweiz
-        <br />
-        E-Mail: [deine-kontakt-adresse@example.com]
+        E-Mail: leo.wuethrich@gmail.com
       </p>
 
       <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 20, marginTop: "var(--space-6)" }}>

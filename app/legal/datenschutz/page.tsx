@@ -2,14 +2,6 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Datenschutzerklärung — Krumen" };
 
-/*
-  ▸ VOR DEM ÖFFENTLICHEN BETRIEB PRÜFEN ◂
-  Dieser Text ist auf die tatsächlich eingesetzten Dienste zugeschnitten
-  (Firebase Auth, Cloud Firestore, Firebase Analytics, Google Gemini API,
-  Netlify-Hosting). Ersetze [Platzhalter] und die Kontakt-E-Mail. Das ist
-  eine Vorlage, keine Rechtsberatung — bei Unsicherheit prüfen lassen.
-*/
-
 const h2 = {
   fontFamily: "var(--font-heading)",
   fontSize: 20,
@@ -34,7 +26,7 @@ export default function DatenschutzPage() {
 
       <h2 style={h2}>Verantwortliche Person</h2>
       <p>
-        [Vor- und Nachname], [PLZ Ort], Schweiz. Kontakt: [deine-kontakt-adresse@example.com].
+        Leo Wüthrich, Zürich, Schweiz. Kontakt: leo.wuethrich@gmail.com.
         Siehe auch das <a href="/legal/impressum">Impressum</a>.
       </p>
 
@@ -113,13 +105,13 @@ export default function DatenschutzPage() {
         Widerruf einer erteilten Einwilligung. Die Analyse-Einwilligung kannst du widerrufen, indem
         du im Browser die gespeicherte Auswahl löschst (Website-Daten für diese Seite entfernen);
         beim nächsten Besuch erscheint der Hinweis erneut. Zur Ausübung deiner Rechte wende dich an
-        [deine-kontakt-adresse@example.com]. Du kannst dich zudem beim Eidgenössischen
+        leo.wuethrich@gmail.com. Du kannst dich zudem beim Eidgenössischen
         Datenschutz- und Öffentlichkeitsbeauftragten (EDÖB) beschweren.
       </p>
 
       <h2 style={h2}>Konto und Daten löschen</h2>
       <p>
-        Schreib eine E-Mail an [deine-kontakt-adresse@example.com]. Dein Firebase-Auth-Konto und dein
+        Schreib eine E-Mail an leo.wuethrich@gmail.com. Dein Firebase-Auth-Konto und dein
         Board-Dokument werden dann entfernt.
       </p>
 
