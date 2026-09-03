@@ -1,9 +1,11 @@
 rules_version = '2';
 
-// Krumen — Firebase Email/Password Auth aktiv.
+// Krumen — Firebase Email/Password Auth aktiv, Self-Signup geschlossen.
 // Jeder Nutzer hat genau ein Board-Dokument unter seiner eigenen UID:
 //   boards/{uid}  ⇒  nur der angemeldete Nutzer selbst darf es lesen/schreiben
 // Der Payload muss exakt die erwarteten Felder/Typen haben; Größe gedeckelt.
+// updatedAt muss der Server-Zeitstempel des SCHREIBZEITPUNKTS sein, damit der
+// Client keinen freien Wert reinschreibt.
 // Alles außerhalb von `boards` ist gesperrt.
 
 service cloud.firestore {
@@ -43,5 +45,5 @@ function isWellFormedBoard(d) {
       && d.nextTaskId is int && d.nextTaskId >= 0
       && d.nextStoryId is int && d.nextStoryId >= 0
       && d.msgSeq is int && d.msgSeq >= 0
-      && d.updatedAt is int;
+      && d.updatedAt == request.time;
 }

@@ -16,12 +16,8 @@ export function LoginScreen() {
 
   async function submit() {
     setError("");
-    if (!email.includes("@")) {
-      setError("Bitte eine gültige E-Mail-Adresse eingeben.");
-      return;
-    }
-    if (password.length < 6) {
-      setError("Das Passwort muss mindestens sechs Zeichen haben.");
+    if (!email.includes("@") || !password) {
+      setError("Bitte E-Mail und Passwort eingeben.");
       return;
     }
     setLoading(true);

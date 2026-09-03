@@ -1,12 +1,14 @@
-import { doc, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
+import {
+  doc,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+  type Unsubscribe,
+} from "firebase/firestore";
 import { getDb } from "./firebase";
 import type { PersistState } from "./store";
 
 const COLLECTION = "boards";
-
-export interface BoardDoc extends PersistState {
-  updatedAt: number;
-}
 
 function isPersistState(v: unknown): v is PersistState {
   if (!v || typeof v !== "object") return false;
@@ -62,10 +64,10 @@ export function subscribeBoard(
   );
 }
 
-/** Board-Dokument überschreiben (merge:false → genau dieser Stand gilt). */
+/** Board-Dokument überschreiben (merge:false → genau dieser Stand gilt).
+ *  updatedAt setzt der Server, nicht der Client. */
 export async function saveBoard(uid: string, state: PersistState): Promise<void> {
   const db = getDb();
   if (!db) return;
-  const payload: BoardDoc = { ...state, updatedAt: Date.now() };
-  await setDoc(doc(db, COLLECTION, uid), payload);
+  await setDoc(doc(db, COLLECTION, uid), { ...state, updatedAt: serverTimestamp() });
 }
