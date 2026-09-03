@@ -8,17 +8,38 @@ import { getFirestore } from "firebase-admin/firestore";
  * FIREBASE_SERVICE_ACCOUNT (JSON, roh oder Base64) oder GOOGLE_APPLICATION_CREDENTIALS.
  */
 
+/**
+ * FIREBASE_SERVICE_ACCOUNT robust parsen. Akzeptiert:
+ *  - rohes JSON  ({ "type": "service_account", ... })
+ *  - Base64 von JSON (auch mit Whitespace/Zeilenumbrüchen, wie manche Hoster liefern)
+ *  - JSON in einfachen/doppelten Anführungszeichen (Copy-Paste-Unfälle)
+ */
 function loadServiceAccount(): Record<string, string> | null {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+  let raw = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!raw) return null;
-  const text = raw.trim().startsWith("{")
-    ? raw
-    : Buffer.from(raw, "base64").toString("utf8");
+  raw = raw.trim();
+  if (
+    (raw.startsWith('"') && raw.endsWith('"')) ||
+    (raw.startsWith("'") && raw.endsWith("'"))
+  ) {
+    raw = raw.slice(1, -1);
+  }
+
+  let text: string;
+  if (raw.startsWith("{")) {
+    text = raw;
+  } else {
+    // Base64: alle Nicht-Base64-Zeichen (Whitespace, Umbrüche) entfernen
+    const b64 = raw.replace(/[^A-Za-z0-9+/=_-]/g, "").replace(/-/g, "+").replace(/_/g, "/");
+    text = Buffer.from(b64, "base64").toString("utf8");
+  }
+
   try {
     const obj = JSON.parse(text) as Record<string, string>;
     if (obj.private_key) obj.private_key = obj.private_key.replace(/\\n/g, "\n");
     return obj;
-  } catch {
+  } catch (e) {
+    console.error("FIREBASE_SERVICE_ACCOUNT konnte nicht geparst werden:", (e as Error).message);
     return null;
   }
 }
@@ -32,12 +53,17 @@ export function adminApp(): App | null {
     return app;
   }
   const sa = loadServiceAccount();
-  if (sa) {
-    app = initializeApp({ credential: cert(sa as Parameters<typeof cert>[0]) });
-  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    app = initializeApp();
-  } else {
-    return null; // nicht konfiguriert
+  try {
+    if (sa) {
+      app = initializeApp({ credential: cert(sa as Parameters<typeof cert>[0]) });
+    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      app = initializeApp();
+    } else {
+      return null; // nicht konfiguriert
+    }
+  } catch (e) {
+    console.error("Firebase Admin initializeApp fehlgeschlagen:", (e as Error).message);
+    return null;
   }
   return app;
 }

@@ -28,9 +28,13 @@ const HTTP_FOR_CODE: Record<string, number> = {
 
 /** Ob die AI konfiguriert ist — für den Client-seitigen Gate. */
 export async function GET() {
-  return json({
-    ready: Boolean(process.env.GEMINI_API_KEY) && adminReady(),
-  });
+  try {
+    return json({
+      ready: Boolean(process.env.GEMINI_API_KEY) && adminReady(),
+    });
+  } catch {
+    return json({ ready: false });
+  }
 }
 
 interface Body {
@@ -89,6 +93,15 @@ function extractJson(text: string): string {
 }
 
 export async function POST(req: Request) {
+  try {
+    return await handlePost(req);
+  } catch (e) {
+    console.error("api/ai POST — unerwarteter Fehler:", e instanceof Error ? e.stack : e);
+    return json({ error: "Interner Fehler beim AI-Aufruf." }, 500);
+  }
+}
+
+async function handlePost(req: Request): Promise<Response> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return json({ error: "AI ist nicht konfiguriert (GEMINI_API_KEY fehlt)." }, 503);
