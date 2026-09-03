@@ -1,6 +1,4 @@
-import "server-only";
 import { adminDb, AuthzError, type Caller } from "./firebaseAdmin";
-import { FieldValue } from "firebase-admin/firestore";
 
 /** Tageslimit für Gäste (Portfolio-Demo). Dein eigenes Konto ist ausgenommen. */
 const GUEST_DAILY_LIMIT = Number(process.env.AI_GUEST_DAILY_LIMIT || 5);
@@ -28,7 +26,8 @@ export async function consumeQuota(caller: Caller): Promise<{ used: number; limi
   const owner = isOwner(caller);
   const limit = owner ? OWNER_DAILY_LIMIT : GUEST_DAILY_LIMIT;
 
-  const db = adminDb();
+  const db = await adminDb();
+  const { FieldValue } = await import("firebase-admin/firestore");
   const ref = db.collection("usage").doc(caller.uid);
   const day = today();
 

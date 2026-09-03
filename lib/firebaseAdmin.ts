@@ -1,18 +1,17 @@
-import "server-only";
-import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import type { App } from "firebase-admin/app";
 
 /**
- * Firebase Admin SDK — nur serverseitig. Credentials aus
- * FIREBASE_SERVICE_ACCOUNT (JSON, roh oder Base64) oder GOOGLE_APPLICATION_CREDENTIALS.
+ * Firebase Admin SDK — nur serverseitig, lazy geladen. Alle firebase-admin-
+ * Imports passieren erst beim ersten Aufruf innerhalb der Funktion, damit ein
+ * Bundling-/Init-Problem nicht das ganze Route-Modul beim Laden killt.
+ * Credentials aus FIREBASE_SERVICE_ACCOUNT (JSON roh oder Base64).
  */
 
 /**
  * FIREBASE_SERVICE_ACCOUNT robust parsen. Akzeptiert:
  *  - rohes JSON  ({ "type": "service_account", ... })
- *  - Base64 von JSON (auch mit Whitespace/Zeilenumbrüchen, wie manche Hoster liefern)
- *  - JSON in einfachen/doppelten Anführungszeichen (Copy-Paste-Unfälle)
+ *  - Base64 von JSON (auch mit Whitespace/Zeilenumbrüchen)
+ *  - JSON in einfachen/doppelten Anführungszeichen
  */
 function loadServiceAccount(): Record<string, string> | null {
   let raw = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -29,7 +28,6 @@ function loadServiceAccount(): Record<string, string> | null {
   if (raw.startsWith("{")) {
     text = raw;
   } else {
-    // Base64: alle Nicht-Base64-Zeichen (Whitespace, Umbrüche) entfernen
     const b64 = raw.replace(/[^A-Za-z0-9+/=_-]/g, "").replace(/-/g, "+").replace(/_/g, "/");
     text = Buffer.from(b64, "base64").toString("utf8");
   }
@@ -44,32 +42,29 @@ function loadServiceAccount(): Record<string, string> | null {
   }
 }
 
-let app: App | null = null;
+let appPromise: Promise<App | null> | null = null;
 
-export function adminApp(): App | null {
-  if (app) return app;
-  if (getApps().length) {
-    app = getApps()[0];
-    return app;
-  }
-  const sa = loadServiceAccount();
-  try {
-    if (sa) {
-      app = initializeApp({ credential: cert(sa as Parameters<typeof cert>[0]) });
-    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-      app = initializeApp();
-    } else {
-      return null; // nicht konfiguriert
+async function adminApp(): Promise<App | null> {
+  if (appPromise) return appPromise;
+  appPromise = (async () => {
+    try {
+      const { cert, getApps, initializeApp } = await import("firebase-admin/app");
+      if (getApps().length) return getApps()[0];
+      const sa = loadServiceAccount();
+      if (!sa) {
+        console.error("Firebase Admin: kein Service-Account (FIREBASE_SERVICE_ACCOUNT fehlt/ungültig).");
+        return null;
+      }
+      return initializeApp({ credential: cert(sa as Parameters<typeof cert>[0]) });
+    } catch (e) {
+      console.error("Firebase Admin init fehlgeschlagen:", (e as Error).stack || e);
+      return null;
     }
-  } catch (e) {
-    console.error("Firebase Admin initializeApp fehlgeschlagen:", (e as Error).message);
-    return null;
-  }
-  return app;
+  })();
+  return appPromise;
 }
 
-export const adminReady = () =>
-  Boolean(process.env.FIREBASE_SERVICE_ACCOUNT || process.env.GOOGLE_APPLICATION_CREDENTIALS);
+export const adminReady = () => Boolean(process.env.FIREBASE_SERVICE_ACCOUNT);
 
 export interface Caller {
   uid: string;
@@ -77,15 +72,11 @@ export interface Caller {
   emailVerified: boolean;
 }
 
-/**
- * Bearer-Token verifizieren. Wirft bei fehlend/ungültig und bei nicht
- * bestätigter E-Mail. Wenn App Check erzwungen ist, verlangt Firebase
- * zusätzlich einen gültigen App-Check-Token — dieser wird von der SDK
- * automatisch mitgeschickt; ein ungültiger führt hier zu BAD_TOKEN.
- */
+/** Bearer-Token verifizieren. Wirft bei fehlend/ungültig und bei nicht
+ *  bestätigter E-Mail. */
 export async function verifyCaller(req: Request): Promise<Caller> {
-  const a = adminApp();
-  if (!a) throw new AuthzError("SERVER_UNCONFIGURED", "Server nicht konfiguriert (Service-Account fehlt).");
+  const a = await adminApp();
+  if (!a) throw new AuthzError("SERVER_UNCONFIGURED", "Server nicht konfiguriert (Service-Account).");
 
   const header = req.headers.get("authorization") || "";
   const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
@@ -93,6 +84,7 @@ export async function verifyCaller(req: Request): Promise<Caller> {
 
   let decoded;
   try {
+    const { getAuth } = await import("firebase-admin/auth");
     decoded = await getAuth(a).verifyIdToken(token);
   } catch {
     throw new AuthzError("BAD_TOKEN", "Anmeldung abgelaufen — neu einloggen.");
@@ -109,9 +101,10 @@ export async function verifyCaller(req: Request): Promise<Caller> {
   };
 }
 
-export function adminDb() {
-  const a = adminApp();
+export async function adminDb() {
+  const a = await adminApp();
   if (!a) throw new AuthzError("SERVER_UNCONFIGURED", "Server nicht konfiguriert.");
+  const { getFirestore } = await import("firebase-admin/firestore");
   return getFirestore(a);
 }
 
