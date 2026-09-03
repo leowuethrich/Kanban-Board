@@ -5,13 +5,13 @@ import { toPersist } from "./store";
 
 export class AiError extends Error {}
 
-/** Frisches Firebase-ID-Token des angemeldeten Nutzers. */
-async function idToken(): Promise<string | null> {
+/** Frisches Firebase-ID-Token des angemeldeten Nutzers (erzwungen neu geholt). */
+async function idToken(forceRefresh = false): Promise<string | null> {
   const auth = getFirebaseAuth();
   const user = auth?.currentUser;
   if (!user) return null;
   try {
-    return await user.getIdToken();
+    return await user.getIdToken(forceRefresh);
   } catch {
     return null;
   }
@@ -28,22 +28,34 @@ export async function aiReady(): Promise<boolean> {
   }
 }
 
-/** Ruft /api/ai auf. API-Key bleibt serverseitig; ID-Token authentifiziert den Aufrufer. */
+async function postAi(request: AiRequest, board: PersistState, token: string): Promise<Response> {
+  return fetch("/api/ai", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ request, board }),
+  });
+}
+
+/** Ruft /api/ai auf. API-Key bleibt serverseitig; ID-Token authentifiziert den Aufrufer.
+ *  Bei 401 einmal mit frisch erzwungenem Token wiederholen. */
 export async function askAi(request: AiRequest, state: AppState): Promise<AiResult> {
-  const token = await idToken();
+  let token = await idToken();
   if (!token) throw new AiError("Nicht angemeldet.");
 
   const board: PersistState = toPersist(state);
   let res: Response;
   try {
-    res = await fetch("/api/ai", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ request, board }),
-    });
+    res = await postAi(request, board, token);
+    if (res.status === 401) {
+      const fresh = await idToken(true);
+      if (fresh) {
+        token = fresh;
+        res = await postAi(request, board, token);
+      }
+    }
   } catch {
     throw new AiError("Keine Verbindung zum AI-Dienst.");
   }

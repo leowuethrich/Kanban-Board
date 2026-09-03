@@ -86,7 +86,9 @@ export async function verifyCaller(req: Request): Promise<Caller> {
   try {
     const { getAuth } = await import("firebase-admin/auth");
     decoded = await getAuth(a).verifyIdToken(token);
-  } catch {
+  } catch (e) {
+    const err = e as { code?: string; message?: string };
+    console.error("verifyIdToken fehlgeschlagen:", err.code || "", err.message || String(e));
     throw new AuthzError("BAD_TOKEN", "Anmeldung abgelaufen — neu einloggen.");
   }
 
