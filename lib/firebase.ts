@@ -12,8 +12,6 @@ const config = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
-
 /** true, wenn die Pflicht-Config vorhanden ist. Fehlt sie, bleibt die App auf
  *  dem Login-Screen mit einem Hinweis. */
 export const firebaseReady = Boolean(config.apiKey && config.projectId);
@@ -21,30 +19,10 @@ export const firebaseReady = Boolean(config.apiKey && config.projectId);
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
 let auth: Auth | null = null;
-let appCheckStarted = false;
 
 function ensureApp(): FirebaseApp {
-  if (!app) {
-    app = getApps().length ? getApp() : initializeApp(config);
-    startAppCheck(app);
-  }
+  if (!app) app = getApps().length ? getApp() : initializeApp(config);
   return app;
-}
-
-/**
- * Firebase App Check (reCAPTCHA Enterprise) — Bot-Schutz. Muss VOR den ersten
- * Auth-/Firestore-Aufrufen laufen. Ohne Site-Key passiert nichts (App Check dann
- * inaktiv — Enforcement in der Firebase Console sollte in dem Fall aus sein).
- */
-function startAppCheck(fbApp: FirebaseApp): void {
-  if (appCheckStarted || typeof window === "undefined" || !RECAPTCHA_SITE_KEY) return;
-  appCheckStarted = true;
-  void import("firebase/app-check").then(({ initializeAppCheck, ReCaptchaEnterpriseProvider }) => {
-    initializeAppCheck(fbApp, {
-      provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY),
-      isTokenAutoRefreshEnabled: true,
-    });
-  });
 }
 
 export function getDb(): Firestore | null {

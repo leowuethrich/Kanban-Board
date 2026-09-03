@@ -2,19 +2,17 @@
 
 import { useState } from "react";
 import { firebaseReady } from "@/lib/firebase";
-import { AuthError, signIn, signUp } from "@/lib/auth";
+import { AuthError, signIn } from "@/lib/auth";
 import { SiteFooter } from "./SiteFooter";
 
-type Mode = "signin" | "signup";
+// Kein Self-Signup mehr (nach Bot-Missbrauch). Konten werden in der Firebase
+// Console angelegt: Authentication → Users → Add user.
 
 export function LoginScreen() {
-  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const isSignup = mode === "signup";
 
   async function submit() {
     setError("");
@@ -28,18 +26,12 @@ export function LoginScreen() {
     }
     setLoading(true);
     try {
-      if (isSignup) await signUp(email, password);
-      else await signIn(email, password);
+      await signIn(email, password);
       // Erfolg: onAuthChange in <App> übernimmt den Rest.
     } catch (e) {
       setError(e instanceof AuthError ? e.message : "Anmeldung fehlgeschlagen.");
       setLoading(false);
     }
-  }
-
-  function switchMode() {
-    setMode(isSignup ? "signin" : "signup");
-    setError("");
   }
 
   return (
@@ -153,7 +145,7 @@ export function LoginScreen() {
         >
           <div>
             <div className="card-kicker" style={{ marginBottom: "var(--space-1)" }}>
-              {isSignup ? "Neu hier" : "Willkommen zurück"}
+              Willkommen zurück
             </div>
             <h2
               style={{
@@ -163,7 +155,7 @@ export function LoginScreen() {
                 margin: 0,
               }}
             >
-              {isSignup ? "Konto anlegen" : "Anmelden"}
+              Anmelden
             </h2>
           </div>
           <label
@@ -191,7 +183,7 @@ export function LoginScreen() {
             <input
               className="input"
               type="password"
-              autoComplete={isSignup ? "new-password" : "current-password"}
+              autoComplete="current-password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => {
@@ -218,27 +210,11 @@ export function LoginScreen() {
             type="submit"
             disabled={loading || !firebaseReady}
           >
-            {loading ? "Einen Moment …" : isSignup ? "Konto anlegen" : "Anmelden"}
+            {loading ? "Einen Moment …" : "Anmelden"}
           </button>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: 14,
-              color: "var(--color-neutral-600)",
-            }}
-          >
+          <div style={{ fontSize: 14, color: "var(--color-neutral-600)" }}>
             <a href="#" onClick={(e) => e.preventDefault()}>
               Passwort vergessen?
-            </a>
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                switchMode();
-              }}
-            >
-              {isSignup ? "Ich habe schon ein Konto" : "Konto anlegen"}
             </a>
           </div>
           <div
@@ -251,7 +227,7 @@ export function LoginScreen() {
             }}
           >
             {firebaseReady
-              ? "Portfolio-Demo — leg dir ein Konto an und probier's aus. Der AI-Assistent hat für Gäste ein kleines Tageslimit. Bitte keine echten oder vertraulichen Daten eingeben."
+              ? "Portfolio-Demo — Zugang auf Anfrage beim Betreiber. Bitte keine echten oder vertraulichen Daten eingeben."
               : "Firebase ist nicht konfiguriert — .env.local prüfen."}
           </div>
         </form>

@@ -1,5 +1,4 @@
 import {
-  createUserWithEmailAndPassword,
   onAuthStateChanged,
   sendEmailVerification,
   signInWithEmailAndPassword,
@@ -8,8 +7,9 @@ import {
 } from "firebase/auth";
 import { getFirebaseAuth } from "./firebase";
 
-// Signup offen (Portfolio-Demo), aber abgesichert:
-// - Firebase App Check (reCAPTCHA v3) blockt Bots vor jedem Auth-Aufruf
+// Kein Self-Signup (nach Bot-Missbrauch geschlossen). Konten legt der Betreiber
+// in der Firebase Console an (Authentication → Users → Add user).
+// Weiterhin aktiv:
 // - E-Mail-Verifizierung ist Pflicht: ohne bestätigte Adresse kein App-Zugang
 //   und keine AI-Nutzung (serverseitig geprüft in /api/ai)
 // - Gäste-Rate-Limit pro Konto/Tag (lib/aiGate.ts)
@@ -45,20 +45,9 @@ export async function signIn(email: string, password: string): Promise<void> {
   }
 }
 
-/** Konto anlegen + Bestätigungsmail senden. Der Nutzer bleibt angemeldet,
- *  aber unverifiziert — <App> zeigt dann den Verifizierungs-Screen. */
-export async function signUp(email: string, password: string): Promise<void> {
-  const auth = getFirebaseAuth();
-  if (!auth) throw new AuthError("Firebase ist nicht konfiguriert.");
-  try {
-    const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-    await sendEmailVerification(cred.user);
-  } catch (e) {
-    throw new AuthError(messageFor(e));
-  }
-}
-
-/** Bestätigungsmail erneut senden (für den Verifizierungs-Screen). */
+/** Bestätigungsmail erneut senden (für den Verifizierungs-Screen). Wird
+ *  gebraucht, wenn ein in der Console angelegtes Konto seine E-Mail noch
+ *  bestätigen muss. */
 export async function resendVerification(): Promise<void> {
   const auth = getFirebaseAuth();
   const user = auth?.currentUser;
