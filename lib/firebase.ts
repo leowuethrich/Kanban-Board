@@ -32,16 +32,16 @@ function ensureApp(): FirebaseApp {
 }
 
 /**
- * Firebase App Check (reCAPTCHA v3) — Bot-Schutz. Muss VOR den ersten Auth-/
- * Firestore-Aufrufen laufen. Ohne Site-Key passiert nichts (App Check dann
+ * Firebase App Check (reCAPTCHA Enterprise) — Bot-Schutz. Muss VOR den ersten
+ * Auth-/Firestore-Aufrufen laufen. Ohne Site-Key passiert nichts (App Check dann
  * inaktiv — Enforcement in der Firebase Console sollte in dem Fall aus sein).
  */
 function startAppCheck(fbApp: FirebaseApp): void {
   if (appCheckStarted || typeof window === "undefined" || !RECAPTCHA_SITE_KEY) return;
   appCheckStarted = true;
-  void import("firebase/app-check").then(({ initializeAppCheck, ReCaptchaV3Provider }) => {
+  void import("firebase/app-check").then(({ initializeAppCheck, ReCaptchaEnterpriseProvider }) => {
     initializeAppCheck(fbApp, {
-      provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+      provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY),
       isTokenAutoRefreshEnabled: true,
     });
   });
