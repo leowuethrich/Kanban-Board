@@ -65,6 +65,7 @@
 }
 
 html, body { margin: 0; background: var(--color-bg); }
+html { -webkit-text-size-adjust: 100%; }
 
 body {
   background: var(--color-bg);
@@ -73,9 +74,14 @@ body {
   font-size: 15px;
   line-height: 1.55;
   font-weight: 400;
+  overflow-wrap: break-word;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
+
+/* Nichts darf den Viewport horizontal sprengen — breite Inhalte
+   (Board, Tabellen) scrollen in ihrem eigenen Container. */
+html, body { max-width: 100%; overflow-x: hidden; }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading); font-weight: var(--font-heading-weight);
@@ -214,6 +220,8 @@ select.input {
 /* — prototype animations — */
 @keyframes om-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes om-pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+/* Bottom-Sheet auf dem Handy: von unten einfahren */
+@keyframes om-sheet { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: none; } }
 
 .om-scroll::-webkit-scrollbar { height: 10px; width: 10px; }
 .om-scroll::-webkit-scrollbar-thumb { background: var(--color-neutral-300); border-radius: 999px; }
@@ -222,3 +230,52 @@ select.input {
 .tab-pill:hover { opacity: .85; }
 .link-btn:hover { color: var(--color-accent-700); }
 .board-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+
+/* ─────────────────────────────────────────────────────────────
+   Responsive — Handy / schmales Tablet (≤ 820px)
+   Der Rest des Layouts wird per useMediaQuery in den Komponenten
+   umgeschaltet; hier nur, was in globalen Klassen steckt.
+   ───────────────────────────────────────────────────────────── */
+@media (max-width: 820px) {
+  body { font-size: 14.5px; }
+
+  h1 { font-size: 30px; }
+  h2 { font-size: 25px; }
+  h3 { font-size: 21px; }
+
+  /* Header darf umbrechen statt zu überlaufen */
+  .nav {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+  }
+  .nav-brand { margin-right: var(--space-2); }
+
+  /* Tab-Umschalter: volle Breite, gleichmäßig verteilte Pillen */
+  .nav .tab-pill { flex: 1; padding-inline: 10px; font-size: 14px; }
+
+  /* Drawer/Dialog sitzen am unteren Rand statt zentriert,
+     damit die Tastatur sie nicht verdeckt */
+  .dialog-backdrop { align-items: stretch; padding: 0; }
+
+  /* Große Tabellen (Overview u.ä.) horizontal scrollbar machen */
+  .table { font-size: 13px; }
+
+  /* Touch-Ziele etwas größer */
+  .btn { padding: var(--space-2) var(--space-3); }
+}
+
+@media (max-width: 520px) {
+  h1 { font-size: 26px; }
+
+  .nav { padding: var(--space-2); }
+
+  /* Footer: linksbündig umbrechen, kein rechtsbündiger Zusatz-Fließtext */
+  .site-footer { padding-inline: var(--space-3); gap: var(--space-1) var(--space-3); }
+  .site-footer-spacer { display: none; }
+}
+
+/* Feine Zeiger (Maus) bekommen Hover-Lift; Touch nicht (klebt sonst) */
+@media (hover: none) {
+  .board-card:hover { box-shadow: var(--shadow-sm); transform: none; }
+}

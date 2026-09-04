@@ -1,11 +1,12 @@
 export function SiteFooter() {
   return (
     <footer
+      className="site-footer"
       style={{
         flex: "none",
         display: "flex",
         alignItems: "center",
-        gap: "var(--space-4)",
+        gap: "var(--space-2) var(--space-4)",
         flexWrap: "wrap",
         padding: "var(--space-2) var(--space-6)",
         borderTop: "1px solid var(--color-divider)",
@@ -28,7 +29,7 @@ export function SiteFooter() {
       <a href="/legal/nutzungsbedingungen" style={{ color: "inherit", textDecoration: "none" }}>
         Nutzungsbedingungen
       </a>
-      <span style={{ flex: 1 }} />
+      <span className="site-footer-spacer" style={{ flex: 1 }} />
       <span>Portfolio-Demo — keine echten Daten eingeben.</span>
     </footer>
   );

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { COLS, POINTS, tagClass } from "@/lib/constants";
+import { MOBILE_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
 import type { ColId, Points, Task, UserStory } from "@/lib/types";
 
 interface Props {
@@ -29,6 +30,7 @@ export function TaskEditor({
 }: Props) {
   const [acDraft, setAcDraft] = useState("");
   const [commentDraft, setCommentDraft] = useState("");
+  const isMobile = useMediaQuery(MOBILE_QUERY);
 
   const doneAc = task.acs.filter((a) => a.done).length;
   const story = stories.find((s) => s.id === task.storyId) ?? null;
@@ -50,23 +52,32 @@ export function TaskEditor({
     <div
       className="dialog-backdrop"
       onClick={onClose}
-      style={{ position: "fixed", inset: 0, display: "flex", justifyContent: "flex-end", zIndex: 40 }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        display: "flex",
+        justifyContent: "flex-end",
+        alignItems: isMobile ? "flex-end" : "stretch",
+        zIndex: 40,
+      }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className="om-scroll"
         style={{
-          width: 560,
-          maxWidth: "92vw",
-          height: "100%",
+          width: isMobile ? "100%" : 560,
+          maxWidth: isMobile ? "100%" : "92vw",
+          height: isMobile ? "92vh" : "100%",
           background: "var(--color-bg)",
           boxShadow: "var(--shadow-lg)",
+          borderTopLeftRadius: isMobile ? "var(--radius-lg)" : 0,
+          borderTopRightRadius: isMobile ? "var(--radius-lg)" : 0,
           overflow: "auto",
-          padding: "var(--space-8)",
+          padding: isMobile ? "var(--space-4) var(--space-4) var(--space-6)" : "var(--space-8)",
           display: "flex",
           flexDirection: "column",
           gap: "var(--space-4)",
-          animation: "om-in .2s ease both",
+          animation: isMobile ? "om-sheet .22s ease both" : "om-in .2s ease both",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
@@ -96,7 +107,13 @@ export function TaskEditor({
           }}
         />
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--space-3)" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr",
+            gap: "var(--space-3)",
+          }}
+        >
           <label
             className="field"
             style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)" }}

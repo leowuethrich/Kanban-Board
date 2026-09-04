@@ -1,6 +1,7 @@
 "use client";
 
 import { tagClass } from "@/lib/constants";
+import { MOBILE_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
 import type { Task, UserStory } from "@/lib/types";
 
 interface Props {
@@ -24,6 +25,7 @@ export function StoriesView({
   onDerive,
   onSync,
 }: Props) {
+  const isMobile = useMediaQuery(MOBILE_QUERY);
   return (
     <div
       style={{
@@ -33,22 +35,33 @@ export function StoriesView({
         maxWidth: 900,
       }}
     >
-      <div style={{ display: "flex", alignItems: "flex-end", gap: "var(--space-4)" }}>
-        <div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: isMobile ? "stretch" : "flex-end",
+          flexWrap: "wrap",
+          gap: "var(--space-3)",
+        }}
+      >
+        <div style={{ flex: isMobile ? "1 1 100%" : "0 0 auto" }}>
           <div className="card-kicker">User Stories</div>
           <h1
             style={{
               fontFamily: "var(--font-heading)",
               fontWeight: "var(--font-heading-weight)",
-              fontSize: 36,
+              fontSize: isMobile ? 28 : 36,
               margin: "var(--space-1) 0 0",
             }}
           >
             Anforderungen
           </h1>
         </div>
-        <div style={{ flex: 1 }} />
-        <button className="btn btn-primary" onClick={onNewStory}>
+        {!isMobile && <div style={{ flex: 1 }} />}
+        <button
+          className="btn btn-primary"
+          onClick={onNewStory}
+          style={{ flex: isMobile ? "1 1 100%" : "0 0 auto" }}
+        >
           Neue Story
         </button>
       </div>
@@ -140,12 +153,12 @@ export function StoriesView({
                 </p>
               )}
 
-              <div style={{ display: "flex", gap: "var(--space-2)" }}>
+              <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
                 <button
                   className="btn btn-primary"
                   onClick={() => onDerive(s.id)}
                   disabled={!aiOn || busy}
-                  style={{ fontSize: 13, padding: "6px 14px" }}
+                  style={{ fontSize: 13, padding: "6px 14px", flex: isMobile ? "1 1 45%" : "0 0 auto" }}
                 >
                   Tasks ableiten
                 </button>
@@ -153,7 +166,7 @@ export function StoriesView({
                   className="btn btn-secondary"
                   onClick={() => onSync(s.id)}
                   disabled={!aiOn || busy || linked.length === 0}
-                  style={{ fontSize: 13, padding: "6px 14px" }}
+                  style={{ fontSize: 13, padding: "6px 14px", flex: isMobile ? "1 1 45%" : "0 0 auto" }}
                 >
                   Mit Tasks abgleichen
                 </button>

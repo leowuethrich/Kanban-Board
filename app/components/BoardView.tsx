@@ -1,6 +1,7 @@
 "use client";
 
 import { COLS, tagClass } from "@/lib/constants";
+import { MOBILE_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
 import type { ColId, Task, UserStory } from "@/lib/types";
 
 interface Props {
@@ -36,35 +37,47 @@ export function BoardView({
   onDragLeaveCol,
   onDropCol,
 }: Props) {
+  const isMobile = useMediaQuery(MOBILE_QUERY);
   const storyOf = (id: number | null) => (id == null ? null : stories.find((s) => s.id === id) ?? null);
 
   return (
     <div
       style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", height: "100%" }}
     >
-      <div style={{ display: "flex", alignItems: "flex-end", gap: "var(--space-4)" }}>
-        <div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: isMobile ? "stretch" : "flex-end",
+          flexWrap: "wrap",
+          gap: "var(--space-3)",
+        }}
+      >
+        <div style={{ flex: isMobile ? "1 1 100%" : "0 0 auto" }}>
           <div className="card-kicker">Board</div>
           <h1
             style={{
               fontFamily: "var(--font-heading)",
               fontWeight: "var(--font-heading-weight)",
-              fontSize: 36,
+              fontSize: isMobile ? 28 : 36,
               margin: "var(--space-1) 0 0",
             }}
           >
             Krumen Web
           </h1>
         </div>
-        <div style={{ flex: 1 }} />
+        {!isMobile && <div style={{ flex: 1 }} />}
         <input
           className="input"
           placeholder="Aufgaben durchsuchen"
           value={query}
           onChange={(e) => onQuery(e.target.value)}
-          style={{ maxWidth: 240 }}
+          style={{ maxWidth: isMobile ? "none" : 240, flex: isMobile ? "1 1 60%" : "0 0 auto" }}
         />
-        <button className="btn btn-primary" onClick={onNewTask}>
+        <button
+          className="btn btn-primary"
+          onClick={onNewTask}
+          style={{ flex: isMobile ? "1 1 30%" : "0 0 auto", whiteSpace: "nowrap" }}
+        >
           Neue Aufgabe
         </button>
       </div>
@@ -73,11 +86,15 @@ export function BoardView({
         className="om-scroll"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(5, minmax(230px, 1fr))",
+          gridTemplateColumns: isMobile
+            ? "repeat(5, minmax(78vw, 1fr))"
+            : "repeat(5, minmax(230px, 1fr))",
           gap: "var(--space-3)",
           alignItems: "start",
           overflowX: "auto",
           paddingBottom: "var(--space-3)",
+          WebkitOverflowScrolling: "touch",
+          scrollSnapType: isMobile ? "x proximity" : undefined,
         }}
       >
         {COLS.map((col) => {
@@ -106,6 +123,7 @@ export function BoardView({
                 gap: "var(--space-3)",
                 minHeight: 220,
                 transition: "background .15s ease",
+                scrollSnapAlign: isMobile ? "start" : undefined,
               }}
             >
               <div

@@ -1,6 +1,7 @@
 "use client";
 
 import { CAPACITY, colName, tagClass } from "@/lib/constants";
+import { MOBILE_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
 import type { Task, UserStory } from "@/lib/types";
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function SprintView({ tasks, stories, onToggle, onOpen }: Props) {
+  const isMobile = useMediaQuery(MOBILE_QUERY);
   const sprintPts = tasks.filter((t) => t.sprint).reduce((n, t) => n + t.points, 0);
   const over = sprintPts > CAPACITY;
   const pct = Math.min(100, Math.round((sprintPts / CAPACITY) * 100));
@@ -34,7 +36,7 @@ export function SprintView({ tasks, stories, onToggle, onOpen }: Props) {
           style={{
             fontFamily: "var(--font-heading)",
             fontWeight: "var(--font-heading-weight)",
-            fontSize: 36,
+            fontSize: isMobile ? 28 : 36,
             margin: "var(--space-1) 0 0",
           }}
         >
@@ -98,7 +100,8 @@ export function SprintView({ tasks, stories, onToggle, onOpen }: Props) {
                 display: "flex",
                 flexDirection: "row",
                 alignItems: "center",
-                gap: "var(--space-3)",
+                flexWrap: isMobile ? "wrap" : "nowrap",
+                gap: "var(--space-2) var(--space-3)",
                 boxShadow: "var(--shadow-sm)",
               }}
             >
@@ -129,7 +132,8 @@ export function SprintView({ tasks, stories, onToggle, onOpen }: Props) {
                 onClick={() => onOpen(t.id)}
                 className="link-btn"
                 style={{
-                  flex: 1,
+                  flex: isMobile ? "1 1 100%" : 1,
+                  order: isMobile ? 1 : 0,
                   textAlign: "left",
                   border: 0,
                   background: "none",

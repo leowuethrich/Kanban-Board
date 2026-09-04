@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { firebaseReady } from "@/lib/firebase";
 import { AuthError, sendPasswordReset, signIn } from "@/lib/auth";
+import { MOBILE_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
 import { SiteFooter } from "./SiteFooter";
 
 // Kein Self-Signup mehr (nach Bot-Missbrauch). Konten werden in der Firebase
 // Console angelegt: Authentication → Users → Add user.
 
 export function LoginScreen() {
+  const isMobile = useMediaQuery(MOBILE_QUERY);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -63,9 +65,10 @@ export function LoginScreen() {
         style={{
           flex: 1,
           display: "grid",
-          gridTemplateColumns: "1.05fr .95fr",
+          gridTemplateColumns: isMobile ? "1fr" : "1.05fr .95fr",
         }}
       >
+      {!isMobile && (
       <div
         style={{
           display: "flex",
@@ -132,12 +135,13 @@ export function LoginScreen() {
           <span>Sprint-Planung mit Kapazitätsanzeige</span>
         </div>
       </div>
+      )}
 
       <div
         style={{
           display: "grid",
           placeItems: "center",
-          padding: 48,
+          padding: isMobile ? "var(--space-6) var(--space-4)" : 48,
           background: "var(--color-accent-2-200)",
         }}
       >
@@ -150,13 +154,33 @@ export function LoginScreen() {
           style={{
             width: "100%",
             maxWidth: 380,
-            padding: "var(--space-8)",
+            padding: isMobile ? "var(--space-6)" : "var(--space-8)",
             borderRadius: "var(--radius-lg)",
             display: "flex",
             flexDirection: "column",
             gap: "var(--space-4)",
           }}
         >
+          {isMobile && (
+            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+              <div
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 999,
+                  background: "var(--color-accent)",
+                  display: "grid",
+                  placeItems: "center",
+                  color: "var(--color-accent-100)",
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 17,
+                }}
+              >
+                k
+              </div>
+              <span style={{ fontFamily: "var(--font-heading)", fontSize: 20 }}>Krumen</span>
+            </div>
+          )}
           <div>
             <div className="card-kicker" style={{ marginBottom: "var(--space-1)" }}>
               Willkommen zurück

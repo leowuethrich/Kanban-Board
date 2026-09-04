@@ -1,6 +1,7 @@
 "use client";
 
 import { COLS, EPICS, tagClass } from "@/lib/constants";
+import { MOBILE_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
 import type { Task, UserStory } from "@/lib/types";
 
 export function OverviewView({ tasks, stories }: { tasks: Task[]; stories: UserStory[] }) {
@@ -30,6 +31,7 @@ export function OverviewView({ tasks, stories }: { tasks: Task[]; stories: UserS
   });
 
   const empty = tasks.length === 0 && stories.length === 0;
+  const isMobile = useMediaQuery(MOBILE_QUERY);
 
   return (
     <div
@@ -46,7 +48,7 @@ export function OverviewView({ tasks, stories }: { tasks: Task[]; stories: UserS
           style={{
             fontFamily: "var(--font-heading)",
             fontWeight: "var(--font-heading-weight)",
-            fontSize: 40,
+            fontSize: isMobile ? 28 : 40,
             margin: "var(--space-1) 0 0",
           }}
         >
@@ -62,7 +64,11 @@ export function OverviewView({ tasks, stories }: { tasks: Task[]; stories: UserS
       )}
 
       <div
-        style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--space-4)" }}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+          gap: "var(--space-4)",
+        }}
       >
         {stats.map((s) => (
           <div
@@ -132,7 +138,7 @@ export function OverviewView({ tasks, stories }: { tasks: Task[]; stories: UserS
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(5, 1fr)",
+            gridTemplateColumns: "repeat(auto-fit, minmax(88px, 1fr))",
             gap: "var(--space-3)",
             marginTop: "var(--space-2)",
           }}
@@ -164,7 +170,13 @@ export function OverviewView({ tasks, stories }: { tasks: Task[]; stories: UserS
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "var(--space-4)" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gap: "var(--space-4)",
+        }}
+      >
         <div
           className="card elev-sm"
           style={{ padding: "var(--space-6)", borderRadius: "var(--radius-lg)" }}
@@ -183,12 +195,18 @@ export function OverviewView({ tasks, stories }: { tasks: Task[]; stories: UserS
             {epicStats.map((ep) => (
               <div
                 key={ep.name}
-                style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--space-3)",
+                  flexWrap: isMobile ? "wrap" : "nowrap",
+                }}
               >
                 <span className={`tag ${ep.tagClass}`}>{ep.name}</span>
                 <div
                   style={{
                     flex: 1,
+                    minWidth: isMobile ? "60%" : undefined,
                     height: 10,
                     borderRadius: 999,
                     background: "var(--color-neutral-300)",
@@ -207,7 +225,7 @@ export function OverviewView({ tasks, stories }: { tasks: Task[]; stories: UserS
                   style={{
                     fontSize: 14,
                     color: "var(--color-neutral-700)",
-                    width: 90,
+                    width: isMobile ? "auto" : 90,
                     textAlign: "right",
                   }}
                 >

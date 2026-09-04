@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { EPICS, colName, tagClass } from "@/lib/constants";
+import { MOBILE_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
 import type { Epic, Task, UserStory } from "@/lib/types";
 
 interface Props {
@@ -36,6 +37,7 @@ export function StoryEditor({
   onClose,
 }: Props) {
   const [acDraft, setAcDraft] = useState("");
+  const isMobile = useMediaQuery(MOBILE_QUERY);
   const doneAc = story.acs.filter((a) => a.done).length;
 
   function submitAc() {
@@ -49,23 +51,32 @@ export function StoryEditor({
     <div
       className="dialog-backdrop"
       onClick={onClose}
-      style={{ position: "fixed", inset: 0, display: "flex", justifyContent: "flex-end", zIndex: 40 }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        display: "flex",
+        justifyContent: "flex-end",
+        alignItems: isMobile ? "flex-end" : "stretch",
+        zIndex: 40,
+      }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className="om-scroll"
         style={{
-          width: 560,
-          maxWidth: "92vw",
-          height: "100%",
+          width: isMobile ? "100%" : 560,
+          maxWidth: isMobile ? "100%" : "92vw",
+          height: isMobile ? "92vh" : "100%",
           background: "var(--color-bg)",
           boxShadow: "var(--shadow-lg)",
+          borderTopLeftRadius: isMobile ? "var(--radius-lg)" : 0,
+          borderTopRightRadius: isMobile ? "var(--radius-lg)" : 0,
           overflow: "auto",
-          padding: "var(--space-8)",
+          padding: isMobile ? "var(--space-4) var(--space-4) var(--space-6)" : "var(--space-8)",
           display: "flex",
           flexDirection: "column",
           gap: "var(--space-4)",
-          animation: "om-in .2s ease both",
+          animation: isMobile ? "om-sheet .22s ease both" : "om-in .2s ease both",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
@@ -132,9 +143,16 @@ export function StoryEditor({
             background: "var(--color-neutral-100)",
             borderRadius: "var(--radius-md)",
             alignItems: "center",
+            flexWrap: "wrap",
           }}
         >
-          <span style={{ fontSize: 13, color: "var(--color-neutral-700)", flex: 1 }}>
+          <span
+            style={{
+              fontSize: 13,
+              color: "var(--color-neutral-700)",
+              flex: isMobile ? "1 1 100%" : 1,
+            }}
+          >
             {aiOn
               ? "Lass die AI die Tasks für diese Story erzeugen oder mit den vorhandenen abgleichen."
               : "AI nicht konfiguriert (ANTHROPIC_API_KEY in .env.local)."}
@@ -143,7 +161,7 @@ export function StoryEditor({
             className="btn btn-primary"
             onClick={onDerive}
             disabled={!aiOn || busy}
-            style={{ fontSize: 13, padding: "6px 14px" }}
+            style={{ fontSize: 13, padding: "6px 14px", flex: isMobile ? "1 1 45%" : "0 0 auto" }}
           >
             Tasks ableiten
           </button>
@@ -151,7 +169,7 @@ export function StoryEditor({
             className="btn btn-secondary"
             onClick={onSync}
             disabled={!aiOn || busy || linkedTasks.length === 0}
-            style={{ fontSize: 13, padding: "6px 14px" }}
+            style={{ fontSize: 13, padding: "6px 14px", flex: isMobile ? "1 1 45%" : "0 0 auto" }}
           >
             Mit Tasks abgleichen
           </button>

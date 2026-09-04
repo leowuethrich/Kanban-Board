@@ -15,6 +15,7 @@ interface Props {
   thinking: boolean;
   aiOn: boolean;
   draft: string;
+  mobile?: boolean;
   onDraft: (v: string) => void;
   onSend: () => void;
   onQuick: (kind: QuickKind) => void;
@@ -28,6 +29,7 @@ export function AiPanel({
   thinking,
   aiOn,
   draft,
+  mobile = false,
   onDraft,
   onSend,
   onQuick,
@@ -46,9 +48,9 @@ export function AiPanel({
   return (
     <aside
       style={{
-        width: 380,
-        flex: "none",
-        borderLeft: "1px solid var(--color-divider)",
+        width: mobile ? "100%" : 380,
+        flex: mobile ? 1 : "none",
+        borderLeft: mobile ? "none" : "1px solid var(--color-divider)",
         background: "var(--color-neutral-100)",
         display: "flex",
         flexDirection: "column",

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { TABS } from "@/lib/constants";
+import { MOBILE_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
 import { initialState, reducer } from "@/lib/store";
 import {
   onAuthChange,
@@ -38,6 +39,7 @@ export function App() {
   const [state, dispatch] = useReducer(reducer, undefined, initialState);
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
 
+  const isMobile = useMediaQuery(MOBILE_QUERY);
   const [view, setView] = useState<View>("board");
   const [query, setQuery] = useState("");
   const [aiOpen, setAiOpen] = useState(true);
@@ -62,6 +64,14 @@ export function App() {
   useEffect(() => {
     void aiReady().then(setAiOn);
   }, []);
+
+  // Auf dem Handy startet der Helfer eingeklappt (Vollbild-Overlay statt
+  // fester Spalte). Nur beim Wechsel in die mobile Breite einmal schließen.
+  const wasMobile = useRef(isMobile);
+  useEffect(() => {
+    if (isMobile && !wasMobile.current) setAiOpen(false);
+    wasMobile.current = isMobile;
+  }, [isMobile]);
 
   const orderedTasks = useMemo(() => {
     const byId = new Map(state.tasks.map((t) => [t.id, t]));
@@ -201,7 +211,7 @@ export function App() {
   return (
     <div
       style={{
-        height: "100vh",
+        height: "100dvh",
         display: "flex",
         flexDirection: "column",
         fontFamily: "var(--font-body)",
@@ -215,9 +225,10 @@ export function App() {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "var(--space-6)",
-          padding: "var(--space-3) var(--space-6)",
+          gap: isMobile ? "var(--space-2)" : "var(--space-6)",
+          padding: isMobile ? "var(--space-2) var(--space-3)" : "var(--space-3) var(--space-6)",
           flex: "none",
+          flexWrap: isMobile ? "wrap" : "nowrap",
         }}
       >
         <div
@@ -235,12 +246,27 @@ export function App() {
               color: "var(--color-accent-100)",
               fontFamily: "var(--font-heading)",
               fontSize: 16,
+              flex: "none",
             }}
           >
             k
           </div>
           <span>Krumen</span>
         </div>
+
+        {isMobile && <div style={{ flex: 1 }} />}
+        {isMobile && (
+          <>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setAiOpen((v) => !v)}
+              style={{ padding: "6px 12px", fontSize: 13 }}
+            >
+              {aiOpen ? "Helfer zu" : "AI-Helfer"}
+            </button>
+            <AccountMenu email={auth.user.email} />
+          </>
+        )}
 
         <div
           style={{
@@ -249,6 +275,8 @@ export function App() {
             background: "var(--color-neutral-200)",
             padding: 4,
             borderRadius: 999,
+            order: isMobile ? 1 : 0,
+            width: isMobile ? "100%" : "auto",
           }}
         >
           {TABS.map((t) => {
@@ -262,12 +290,13 @@ export function App() {
                   border: 0,
                   cursor: "pointer",
                   fontFamily: "var(--font-body)",
-                  fontSize: 15,
-                  padding: "7px 16px",
+                  fontSize: isMobile ? 14 : 15,
+                  padding: isMobile ? "7px 10px" : "7px 16px",
                   borderRadius: 999,
                   background: active ? "var(--color-accent)" : "transparent",
                   color: active ? "var(--color-accent-100)" : "var(--color-neutral-700)",
                   fontWeight: active ? 700 : 500,
+                  flex: isMobile ? 1 : "none",
                 }}
               >
                 {t.name}
@@ -276,38 +305,47 @@ export function App() {
           })}
         </div>
 
-        <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 14, color: "var(--color-neutral-600)" }}>
-          Projekt: Krumen Web
-          {syncStatus !== "off" && SYNC_LABEL[syncStatus] && (
-            <span
-              style={{
-                marginLeft: "var(--space-2)",
-                fontSize: 12,
-                color:
-                  syncStatus === "error"
-                    ? "var(--color-accent-700)"
-                    : "var(--color-neutral-500)",
-              }}
-            >
-              · {SYNC_LABEL[syncStatus]}
+        {!isMobile && (
+          <>
+            <div style={{ flex: 1 }} />
+            <span style={{ fontSize: 14, color: "var(--color-neutral-600)" }}>
+              Projekt: Krumen Web
+              {syncStatus !== "off" && SYNC_LABEL[syncStatus] && (
+                <span
+                  style={{
+                    marginLeft: "var(--space-2)",
+                    fontSize: 12,
+                    color:
+                      syncStatus === "error"
+                        ? "var(--color-accent-700)"
+                        : "var(--color-neutral-500)",
+                  }}
+                >
+                  · {SYNC_LABEL[syncStatus]}
+                </span>
+              )}
             </span>
-          )}
-        </span>
-        <button
-          className="btn btn-secondary"
-          onClick={() => setAiOpen((v) => !v)}
-          style={{ padding: "7px 16px" }}
-        >
-          {aiOpen ? "Helfer ausblenden" : "AI-Helfer"}
-        </button>
-        <AccountMenu email={auth.user.email} />
+            <button
+              className="btn btn-secondary"
+              onClick={() => setAiOpen((v) => !v)}
+              style={{ padding: "7px 16px" }}
+            >
+              {aiOpen ? "Helfer ausblenden" : "AI-Helfer"}
+            </button>
+            <AccountMenu email={auth.user.email} />
+          </>
+        )}
       </header>
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         <main
           className="om-scroll"
-          style={{ flex: 1, minWidth: 0, overflow: "auto", padding: "var(--space-6)" }}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflow: "auto",
+            padding: isMobile ? "var(--space-4) var(--space-3)" : "var(--space-6)",
+          }}
         >
           {view === "overview" && <OverviewView tasks={state.tasks} stories={state.stories} />}
           {view === "board" && (
@@ -358,18 +396,33 @@ export function App() {
         </main>
 
         {aiOpen && (
-          <AiPanel
-            messages={state.messages}
-            thinking={thinking}
-            aiOn={aiOn}
-            draft={draft}
-            onDraft={setDraft}
-            onSend={send}
-            onQuick={quickAction}
-            onApply={applyAi}
-            onReset={resetChat}
-            onClose={() => setAiOpen(false)}
-          />
+          <div
+            style={
+              isMobile
+                ? {
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 70,
+                    display: "flex",
+                    background: "var(--color-neutral-100)",
+                  }
+                : { display: "flex", flex: "none" }
+            }
+          >
+            <AiPanel
+              mobile={isMobile}
+              messages={state.messages}
+              thinking={thinking}
+              aiOn={aiOn}
+              draft={draft}
+              onDraft={setDraft}
+              onSend={send}
+              onQuick={quickAction}
+              onApply={applyAi}
+              onReset={resetChat}
+              onClose={() => setAiOpen(false)}
+            />
+          </div>
         )}
       </div>
 
