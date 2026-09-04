@@ -39,12 +39,15 @@ function isOwner(uid) {
 function isWellFormedBoard(d) {
   return d.keys().hasOnly([
            'tasks', 'taskOrder', 'stories', 'messages',
+           'chatMemory', 'archivedChats',
            'nextTaskId', 'nextStoryId', 'msgSeq', 'updatedAt'
          ])
       && d.tasks is list && d.tasks.size() <= 500
       && d.taskOrder is list && d.taskOrder.size() <= 500
       && d.stories is list && d.stories.size() <= 300
       && d.messages is list && d.messages.size() <= 320
+      && d.chatMemory is string && d.chatMemory.size() <= 4000
+      && d.archivedChats is list && d.archivedChats.size() <= 20
       && d.nextTaskId is int && d.nextTaskId >= 0
       && d.nextStoryId is int && d.nextStoryId >= 0
       && d.msgSeq is int && d.msgSeq >= 0

@@ -11,7 +11,7 @@ import type { PersistState } from "./store";
 
 const COLLECTION = "boards";
 
-function isPersistState(v: unknown): v is PersistState {
+function isPersistState(v: unknown): v is Record<string, unknown> {
   if (!v || typeof v !== "object") return false;
   const o = v as Record<string, unknown>;
   return (
@@ -25,15 +25,21 @@ function isPersistState(v: unknown): v is PersistState {
   );
 }
 
-function pickPersist(o: PersistState): PersistState {
+/** Nur bekannte Felder übernehmen. Ältere Dokumente ohne chatMemory/
+ *  archivedChats bekommen hier sinnvolle Defaults. */
+function pickPersist(o: Record<string, unknown>): PersistState {
   return {
-    tasks: o.tasks,
-    taskOrder: o.taskOrder,
-    stories: o.stories,
-    messages: o.messages,
-    nextTaskId: o.nextTaskId,
-    nextStoryId: o.nextStoryId,
-    msgSeq: o.msgSeq,
+    tasks: o.tasks as PersistState["tasks"],
+    taskOrder: o.taskOrder as number[],
+    stories: o.stories as PersistState["stories"],
+    messages: o.messages as PersistState["messages"],
+    chatMemory: typeof o.chatMemory === "string" ? o.chatMemory : "",
+    archivedChats: Array.isArray(o.archivedChats)
+      ? (o.archivedChats as PersistState["archivedChats"])
+      : [],
+    nextTaskId: o.nextTaskId as number,
+    nextStoryId: o.nextStoryId as number,
+    msgSeq: o.msgSeq as number,
   };
 }
 

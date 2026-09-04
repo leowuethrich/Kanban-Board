@@ -87,6 +87,8 @@ export const aiResultSchema = z.object({
   bullets: z.array(z.string().min(1).max(300)).max(10).default([]),
   applyLabel: z.string().max(60).optional(),
   apply: applyActionSchema.optional(),
+  // Rollierende Gesprächsnotiz; die AI aktualisiert sie bei jedem Chat-Zug.
+  memory: z.string().max(4000).optional(),
 });
 
 export type AiResultParsed = z.infer<typeof aiResultSchema>;

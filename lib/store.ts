@@ -1,4 +1,14 @@
-import type { Ac, ApplyAction, ColId, Epic, Message, Points, Task, UserStory } from "./types";
+import type {
+  Ac,
+  ApplyAction,
+  ArchivedChat,
+  ColId,
+  Epic,
+  Message,
+  Points,
+  Task,
+  UserStory,
+} from "./types";
 
 /** Nach Firestore synchronisierter Teil des States. Abgeleitete Werte nie speichern. */
 export interface PersistState {
@@ -6,6 +16,8 @@ export interface PersistState {
   taskOrder: number[]; // globale Reihenfolge (Board-Sortierung, AI-Priorisierung)
   stories: UserStory[];
   messages: Message[]; // AI-Chat, persistiert
+  chatMemory: string; // rollierende Gesprächsnotiz der AI (nur aus dem Chat)
+  archivedChats: ArchivedChat[]; // per „Neu" abgelegte frühere Gespräche
   nextTaskId: number;
   nextStoryId: number;
   msgSeq: number;
@@ -13,11 +25,14 @@ export interface PersistState {
 
 export type AppState = PersistState;
 
-export const INITIAL_MESSAGE: Message = {
-  id: 1,
+export const INITIAL_MESSAGE: Omit<Message, "id" | "at"> = {
   role: "ai",
   text: "Moin. Erzähl mir einfach von deiner Idee — ich stelle Rückfragen und mache am Ende User Stories und Backlog-Tasks daraus, die du mit einem Klick übernimmst.",
 };
+
+function firstMessage(): Message {
+  return { ...INITIAL_MESSAGE, id: 1, at: Date.now() };
+}
 
 /** Leerer Start: keine Seed-Daten. */
 export function initialState(): AppState {
@@ -25,7 +40,9 @@ export function initialState(): AppState {
     tasks: [],
     taskOrder: [],
     stories: [],
-    messages: [INITIAL_MESSAGE],
+    messages: [firstMessage()],
+    chatMemory: "",
+    archivedChats: [],
     nextTaskId: 1,
     nextStoryId: 1,
     msgSeq: 2,
@@ -33,6 +50,18 @@ export function initialState(): AppState {
 }
 
 const MAX_MESSAGES = 300;
+const MAX_CHAT_MEMORY = 4000;
+const MAX_ARCHIVED = 20;
+const MAX_ARCHIVED_MESSAGES = 80; // pro abgelegtem Gespräch, damit das Doc klein bleibt
+
+function archiveOf(state: AppState, id: number): ArchivedChat {
+  return {
+    id,
+    at: Date.now(),
+    messages: state.messages.slice(-MAX_ARCHIVED_MESSAGES),
+    memory: state.chatMemory,
+  };
+}
 
 export type Action =
   | { type: "hydrate"; payload: PersistState }
@@ -59,7 +88,10 @@ export type Action =
   // AI
   | { type: "pushMessage"; message: Omit<Message, "id"> }
   | { type: "applyAi"; action: ApplyAction }
-  | { type: "resetChat" };
+  | { type: "setChatMemory"; memory: string }
+  | { type: "resetChat" } // archiviert das laufende Gespräch, startet ein neues
+  | { type: "restoreChat"; id: number } // legt das aktuelle ab, holt ein archiviertes zurück
+  | { type: "deleteArchivedChat"; id: number };
 
 const ac = (text: string): Ac => ({ text, done: false });
 
@@ -84,7 +116,8 @@ function newTask(id: number, col: ColId, storyId: number | null, overrides: Part
 }
 
 function pushMessage(state: AppState, message: Omit<Message, "id">): AppState {
-  const messages = [...state.messages, { ...message, id: state.msgSeq }];
+  const stamped: Message = { at: Date.now(), ...message, id: state.msgSeq };
+  const messages = [...state.messages, stamped];
   return {
     ...state,
     messages: messages.length > MAX_MESSAGES ? messages.slice(-MAX_MESSAGES) : messages,
@@ -92,10 +125,24 @@ function pushMessage(state: AppState, message: Omit<Message, "id">): AppState {
   };
 }
 
+/** Enthält das laufende Gespräch echten Inhalt (mehr als die Begrüßung)? */
+function chatHasContent(state: AppState): boolean {
+  return state.messages.some((m) => m.role === "me") || state.chatMemory.trim().length > 0;
+}
+
 export function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
-    case "hydrate":
-      return { ...state, ...action.payload };
+    case "hydrate": {
+      const p = action.payload;
+      return {
+        ...state,
+        ...p,
+        // Ältere Dokumente kennen diese Felder noch nicht.
+        chatMemory: typeof p.chatMemory === "string" ? p.chatMemory : "",
+        archivedChats: Array.isArray(p.archivedChats) ? p.archivedChats : [],
+        messages: Array.isArray(p.messages) && p.messages.length ? p.messages : [firstMessage()],
+      };
+    }
 
     // ── Tasks ──────────────────────────────────────────────
     case "addTask": {
@@ -238,8 +285,46 @@ export function reducer(state: AppState, action: Action): AppState {
     case "applyAi":
       return applyAi(state, action.action);
 
-    case "resetChat":
-      return { ...state, messages: [{ ...INITIAL_MESSAGE, id: state.msgSeq }], msgSeq: state.msgSeq + 1 };
+    case "setChatMemory":
+      return { ...state, chatMemory: action.memory.slice(0, MAX_CHAT_MEMORY) };
+
+    case "resetChat": {
+      let seq = state.msgSeq;
+      // Nur archivieren, wenn wirklich etwas drinsteht.
+      const archived: ArchivedChat[] = chatHasContent(state)
+        ? [archiveOf(state, seq++), ...state.archivedChats].slice(0, MAX_ARCHIVED)
+        : state.archivedChats;
+      return {
+        ...state,
+        messages: [{ ...INITIAL_MESSAGE, id: seq, at: Date.now() }],
+        chatMemory: "",
+        archivedChats: archived,
+        msgSeq: seq + 1,
+      };
+    }
+
+    case "restoreChat": {
+      const found = state.archivedChats.find((c) => c.id === action.id);
+      if (!found) return state;
+      let seq = state.msgSeq;
+      const rest = state.archivedChats.filter((c) => c.id !== action.id);
+      const archived: ArchivedChat[] = chatHasContent(state)
+        ? [archiveOf(state, seq++), ...rest].slice(0, MAX_ARCHIVED)
+        : rest;
+      return {
+        ...state,
+        messages: found.messages,
+        chatMemory: found.memory,
+        archivedChats: archived,
+        msgSeq: seq,
+      };
+    }
+
+    case "deleteArchivedChat":
+      return {
+        ...state,
+        archivedChats: state.archivedChats.filter((c) => c.id !== action.id),
+      };
 
     default:
       return state;
@@ -377,6 +462,8 @@ export function toPersist(state: AppState): PersistState {
     taskOrder: state.taskOrder,
     stories: state.stories,
     messages: state.messages,
+    chatMemory: state.chatMemory,
+    archivedChats: state.archivedChats,
     nextTaskId: state.nextTaskId,
     nextStoryId: state.nextStoryId,
     msgSeq: state.msgSeq,

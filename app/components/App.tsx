@@ -114,6 +114,22 @@ export function App() {
         apply: r.apply,
       },
     });
+    // Gesprächsnotiz nur bei Chat-Zügen (Server setzt sie sonst auf undefined).
+    if (typeof r.memory === "string") {
+      dispatch({ type: "setChatMemory", memory: r.memory });
+    }
+  }, []);
+
+  // Kontext, den JEDER AI-Aufruf mitschickt: die rollierende Notiz + die
+  // letzten Roh-Nachrichten. Speist sich nur aus dem Chat. Bei "chat" hängt
+  // der Prompt den neuen Nutzertext selbst hinten an.
+  const chatContext = useCallback(() => {
+    const s = stateRef.current;
+    const history = s.messages
+      .filter((m) => (m.text ?? "").trim())
+      .slice(-24)
+      .map((m) => ({ role: m.role, text: m.text as string }));
+    return { memory: s.chatMemory, history };
   }, []);
 
   const runAi = useCallback(
@@ -144,23 +160,27 @@ export function App() {
     const t = draft.trim();
     if (!t || thinking) return;
     setDraft("");
-    const history = stateRef.current.messages
-      .filter((m) => (m.text ?? "").trim())
-      .slice(-24)
-      .map((m) => ({ role: m.role, text: m.text as string }));
-    void runAi({ kind: "chat", text: t, history }, t);
-  }, [draft, thinking, runAi]);
+    void runAi({ kind: "chat", text: t, context: chatContext() }, t);
+  }, [draft, thinking, runAi, chatContext]);
 
   const resetChat = useCallback(() => {
     dispatch({ type: "resetChat" });
   }, []);
 
+  const restoreChat = useCallback((id: number) => {
+    dispatch({ type: "restoreChat", id });
+  }, []);
+
+  const deleteArchivedChat = useCallback((id: number) => {
+    dispatch({ type: "deleteArchivedChat", id });
+  }, []);
+
   const quickAction = useCallback(
     (kind: "prioritise" | "report" | "tidyUp") => {
       const label = { prioritise: "Priorisieren", report: "Sprint-Report", tidyUp: "Aufräumen" }[kind];
-      void runAi({ kind } as AiRequest, label);
+      void runAi({ kind, context: chatContext() } as AiRequest, label);
     },
-    [runAi],
+    [runAi, chatContext],
   );
 
   const applyAi = useCallback((action: ApplyAction) => {
@@ -381,8 +401,15 @@ export function App() {
               busy={thinking}
               onNewStory={addStory}
               onOpen={(id) => setEditing({ kind: "story", id })}
-              onDerive={(storyId) => void runAi({ kind: "deriveTasks", storyId }, "Tasks ableiten")}
-              onSync={(storyId) => void runAi({ kind: "syncStory", storyId }, "Mit Tasks abgleichen")}
+              onDerive={(storyId) =>
+                void runAi({ kind: "deriveTasks", storyId, context: chatContext() }, "Tasks ableiten")
+              }
+              onSync={(storyId) =>
+                void runAi(
+                  { kind: "syncStory", storyId, context: chatContext() },
+                  "Mit Tasks abgleichen",
+                )
+              }
             />
           )}
           {view === "sprint" && (
@@ -412,6 +439,8 @@ export function App() {
             <AiPanel
               mobile={isMobile}
               messages={state.messages}
+              memory={state.chatMemory}
+              archived={state.archivedChats}
               thinking={thinking}
               aiOn={aiOn}
               draft={draft}
@@ -420,6 +449,8 @@ export function App() {
               onQuick={quickAction}
               onApply={applyAi}
               onReset={resetChat}
+              onRestore={restoreChat}
+              onDeleteArchived={deleteArchivedChat}
               onClose={() => setAiOpen(false)}
             />
           </div>
@@ -455,8 +486,18 @@ export function App() {
           onToggleAc={(index) => dispatch({ type: "toggleStoryAc", id: editingStory.id, index })}
           onRemoveAc={(index) => dispatch({ type: "removeStoryAc", id: editingStory.id, index })}
           onOpenTask={(id) => setEditing({ kind: "task", id })}
-          onDerive={() => void runAi({ kind: "deriveTasks", storyId: editingStory.id }, "Tasks ableiten")}
-          onSync={() => void runAi({ kind: "syncStory", storyId: editingStory.id }, "Mit Tasks abgleichen")}
+          onDerive={() =>
+            void runAi(
+              { kind: "deriveTasks", storyId: editingStory.id, context: chatContext() },
+              "Tasks ableiten",
+            )
+          }
+          onSync={() =>
+            void runAi(
+              { kind: "syncStory", storyId: editingStory.id, context: chatContext() },
+              "Mit Tasks abgleichen",
+            )
+          }
           onDelete={() => {
             const id = editingStory.id;
             setEditing(null);

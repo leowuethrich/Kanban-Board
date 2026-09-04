@@ -71,9 +71,18 @@ export type ApplyAction =
 export interface Message {
   id: number;
   role: "ai" | "me";
+  at?: number; // Zeitstempel (epoch ms), gesetzt beim Anlegen
   title?: string;
   text?: string;
   lines?: string[];
   applyLabel?: string;
   apply?: ApplyAction;
+}
+
+/** Ein abgelegtes (nicht gelöschtes) Gespräch. „Neu" archiviert hierher. */
+export interface ArchivedChat {
+  id: number;
+  at: number; // archiviert am (epoch ms)
+  messages: Message[];
+  memory: string; // Gesprächsnotiz zum Zeitpunkt der Archivierung
 }

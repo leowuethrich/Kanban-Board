@@ -44,11 +44,28 @@ interface Body {
 
 const MAX_BODY_BYTES = 256 * 1024; // Board-Kontext kann groß sein, aber nicht beliebig
 const MAX_CHAT_TEXT = 4000;
-const MAX_HISTORY = 30;
+const MAX_HISTORY = 40;
+const MAX_MEMORY = 4000;
+const MAX_TURN_TEXT = 4000;
+
+function validContext(c: unknown): boolean {
+  if (!c || typeof c !== "object") return false;
+  const o = c as { memory?: unknown; history?: unknown };
+  if (typeof o.memory !== "string" || o.memory.length > MAX_MEMORY) return false;
+  if (!Array.isArray(o.history) || o.history.length > MAX_HISTORY) return false;
+  return o.history.every(
+    (t) =>
+      t &&
+      typeof t === "object" &&
+      ((t as { role?: unknown }).role === "me" || (t as { role?: unknown }).role === "ai") &&
+      typeof (t as { text?: unknown }).text === "string" &&
+      ((t as { text: string }).text).length <= MAX_TURN_TEXT,
+  );
+}
 
 function validRequest(r: unknown): r is AiRequest {
   if (!r || typeof r !== "object") return false;
-  const o = r as { kind?: unknown; history?: unknown; text?: unknown };
+  const o = r as { kind?: unknown; context?: unknown; text?: unknown };
   const k = o.kind;
   if (
     k !== "deriveTasks" &&
@@ -61,9 +78,9 @@ function validRequest(r: unknown): r is AiRequest {
   ) {
     return false;
   }
+  if (!validContext(o.context)) return false;
   if (k === "chat") {
     if (typeof o.text !== "string" || o.text.length === 0 || o.text.length > MAX_CHAT_TEXT) return false;
-    if (!Array.isArray(o.history) || o.history.length > MAX_HISTORY) return false;
   }
   return true;
 }
@@ -180,16 +197,25 @@ async function handlePost(req: Request): Promise<Response> {
     return json({ error: "Antwort des Modells war kein gültiges JSON." }, 502);
   }
 
+  // "memory" nur bei echten Chat-Zügen übernehmen — Schnellaktionen dürfen die
+  // Gesprächsnotiz nicht verändern.
+  const keepMemory = body.request.kind === "chat";
+
   const full = aiResultSchema.safeParse(parsedJson);
   if (full.success) {
-    return json({ result: full.data });
+    return json({ result: keepMemory ? full.data : { ...full.data, memory: undefined } });
   }
 
   // Fallback: apply hat nicht validiert (häufig bei Freitext). Text/Bullets
   // trotzdem ausliefern, apply weglassen — besser als eine Fehlermeldung.
   const obj = (parsedJson ?? {}) as Record<string, unknown>;
   const applyParse = applyActionSchema.safeParse(obj.apply);
-  const stripped = aiResultSchema.safeParse({ ...obj, apply: undefined, applyLabel: undefined });
+  const stripped = aiResultSchema.safeParse({
+    ...obj,
+    apply: undefined,
+    applyLabel: undefined,
+    memory: keepMemory ? obj.memory : undefined,
+  });
   if (stripped.success) {
     console.warn(
       "AI-Antwort: apply verworfen —",

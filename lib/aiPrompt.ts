@@ -1,5 +1,5 @@
 import { COLS } from "./constants";
-import type { AiRequest } from "./aiTypes";
+import type { AiRequest, ChatContext } from "./aiTypes";
 import type { PersistState } from "./store";
 
 /** Kompakter Board-Kontext fürs Modell (nur, was für die Aufgabe zählt). */
@@ -52,8 +52,21 @@ Backlog-Tasks formen, die der Nutzer mit EINEM Klick übernimmt.
   "text": "<1–4 Sätze Deutsch: Rückfrage oder Zusammenfassung des Vorschlags>",
   "bullets": ["<kurze Stichpunkte, Deutsch>", …],   // 0–10, z. B. die geplanten Stories
   "applyLabel": "<Button-Text>",                     // nur zusammen mit "apply"
-  "apply": { … }                                     // optional, genau EINE Aktion
+  "apply": { … },                                    // optional, genau EINE Aktion
+  "memory": "<aktualisierte Gesprächsnotiz, Deutsch>" // siehe unten — bei Chat-Zügen IMMER
 }
+
+## "memory" — dein Langzeitgedächtnis für DIESES Gespräch
+- Bei jeder Chat-Antwort gibst du "memory" zurück: eine kompakte, aktualisierte
+  Notiz (Stichpunkte, höchstens ~1500 Zeichen) mit dem, was du dir merken musst —
+  getroffene Entscheidungen, Vorlieben des Nutzers, Rahmenbedingungen, offene
+  Punkte, was schon übernommen wurde.
+- Baue auf der bisherigen Notiz auf (sie steht im Prompt unter „Gesprächsnotiz"),
+  ergänze und straffe sie. Kein Roman, keine wörtlichen Zitate.
+- Die Notiz speist sich AUSSCHLIESSLICH aus diesem Chat. Nimm nichts aus dem
+  Board-/Story-Kontext hinein, was nicht im Gespräch vorkam.
+- Bei den Schnellaktionen (Report, Priorisieren, Aufräumen usw.) gibst du KEIN
+  "memory" zurück (Feld weglassen) — die ändern das Gespräch nicht.
 
 ## "apply" — nur wenn der Nutzer den Vorschlag übernehmen soll. Sonst weglassen.
 Hauptaktion für den Chat:
@@ -89,36 +102,45 @@ Bei diesen: nur storyId/taskId aus dem Board-Kontext verwenden.
 
 Höchstens EIN "apply" pro Antwort. Antworte NUR mit dem JSON-Objekt.`;
 
-function chatHistory(req: Extract<AiRequest, { kind: "chat" }>): string {
-  const lines = req.history
+function historyBlock(ctx: ChatContext, currentUserText?: string): string {
+  const parts: string[] = [];
+  const mem = ctx.memory.trim();
+  parts.push(`## Gesprächsnotiz (dein bisheriges Gedächtnis für diesen Chat)\n${mem || "(noch leer)"}`);
+
+  const lines = ctx.history
     .filter((t) => t.text.trim())
     .map((t) => `${t.role === "me" ? "Nutzer" : "Assistent"}: ${t.text}`);
-  lines.push(`Nutzer: ${req.text}`);
-  return lines.join("\n");
+  if (currentUserText) lines.push(`Nutzer: ${currentUserText}`);
+  parts.push(`## Bisheriges Gespräch\n${lines.length ? lines.join("\n") : "(noch nichts)"}`);
+  return parts.join("\n\n");
 }
 
 export function userPrompt(req: AiRequest, state: PersistState): string {
   const ctx = boardContext(state);
+  const chat = historyBlock(
+    req.context,
+    req.kind === "chat" ? req.text : undefined,
+  );
   switch (req.kind) {
     case "chat":
-      return `${ctx}\n\n## Bisheriges Gespräch\n${chatHistory(req)}\n\nAntworte als JSON gemäß Systemvorgabe: entweder eine Rückfrage, oder — wenn genug klar ist bzw. der Nutzer zustimmt — ein "ingest"-Vorschlag.`;
+      return `${ctx}\n\n${chat}\n\nAntworte als JSON gemäß Systemvorgabe: entweder eine Rückfrage, oder — wenn genug klar ist bzw. der Nutzer zustimmt — ein "ingest"-Vorschlag. Gib "memory" aktualisiert zurück.`;
     case "deriveTasks": {
       const s = state.stories.find((x) => x.id === req.storyId);
-      return `${ctx}\n\nLeite konkrete Umsetzungs-Tasks aus User Story ${s?.key ?? req.storyId} ab. Gib ein "apply" vom Typ "deriveTasks" mit storyId ${req.storyId} zurück.`;
+      return `${ctx}\n\n${chat}\n\nLeite konkrete Umsetzungs-Tasks aus User Story ${s?.key ?? req.storyId} ab; berücksichtige die Gesprächsnotiz, falls relevant. Gib ein "apply" vom Typ "deriveTasks" mit storyId ${req.storyId} zurück. Kein "memory".`;
     }
     case "syncStory": {
       const s = state.stories.find((x) => x.id === req.storyId);
-      return `${ctx}\n\nGleiche die vorhandenen Tasks von User Story ${s?.key ?? req.storyId} mit ihren Akzeptanzkriterien ab. Melde Lücken im "text"/"bullets" und schlage über ein "apply" vom Typ "syncStory" (storyId ${req.storyId}) fehlende Tasks und/oder Akzeptanzkriterien vor. Fehlt nichts, lass "apply" weg.`;
+      return `${ctx}\n\n${chat}\n\nGleiche die vorhandenen Tasks von User Story ${s?.key ?? req.storyId} mit ihren Akzeptanzkriterien ab. Melde Lücken im "text"/"bullets" und schlage über ein "apply" vom Typ "syncStory" (storyId ${req.storyId}) fehlende Tasks und/oder Akzeptanzkriterien vor. Fehlt nichts, lass "apply" weg. Kein "memory".`;
     }
     case "estimate": {
       const t = state.tasks.find((x) => x.id === req.taskId);
-      return `${ctx}\n\nSchätze Story Points für Task ${t?.key ?? req.taskId}. Begründe kurz (Vergleichstask, Risiko) und gib ein "apply" vom Typ "setTaskPoints" (taskId ${req.taskId}) zurück.`;
+      return `${ctx}\n\n${chat}\n\nSchätze Story Points für Task ${t?.key ?? req.taskId}. Begründe kurz (Vergleichstask, Risiko) und gib ein "apply" vom Typ "setTaskPoints" (taskId ${req.taskId}) zurück. Kein "memory".`;
     }
     case "prioritise":
-      return `${ctx}\n\nSchlage eine sinnvolle Reihenfolge des Backlogs vor (Abhängigkeiten, Blocker zuerst). Begründe kurz und gib ein "apply" vom Typ "reorderTasks" mit der neuen Reihenfolge ALLER Task-IDs zurück.`;
+      return `${ctx}\n\n${chat}\n\nSchlage eine sinnvolle Reihenfolge des Backlogs vor (Abhängigkeiten, Blocker zuerst; Gesprächsnotiz beachten). Begründe kurz und gib ein "apply" vom Typ "reorderTasks" mit der neuen Reihenfolge ALLER Task-IDs zurück. Kein "memory".`;
     case "report":
-      return `${ctx}\n\nErstelle einen kurzen Sprint-Report: Zähler fertig/laufend, Review-Stau, offene Akzeptanzkriterien. Kein "apply".`;
+      return `${ctx}\n\n${chat}\n\nErstelle einen kurzen Sprint-Report: Zähler fertig/laufend, Review-Stau, offene Akzeptanzkriterien. Kein "apply", kein "memory".`;
     case "tidyUp":
-      return `${ctx}\n\nRäume das Board auf: nenne Tasks ohne Story-Zuordnung, doppelte/überlappende Tasks, Tasks ohne Akzeptanzkriterien. Wenn eine einzelne konkrete Verbesserung als "apply" möglich ist, gib sie an — sonst nur Text und Bullets.`;
+      return `${ctx}\n\n${chat}\n\nRäume das Board auf: nenne Tasks ohne Story-Zuordnung, doppelte/überlappende Tasks, Tasks ohne Akzeptanzkriterien. Wenn eine einzelne konkrete Verbesserung als "apply" möglich ist, gib sie an — sonst nur Text und Bullets. Kein "memory".`;
   }
 }
