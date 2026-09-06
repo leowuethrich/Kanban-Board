@@ -131,8 +131,16 @@ async function accessToken(): Promise<string> {
 const DOC_BASE = () =>
   `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
-/** Ein usage/{uid}-Dokument lesen. null wenn nicht vorhanden. */
-export async function usageGet(uid: string): Promise<{ day?: string; count?: number } | null> {
+interface UsageDoc {
+  day?: string;
+  count?: number;
+}
+
+/** Ein usage/{uid}-Dokument lesen. null wenn nicht vorhanden.
+ *  updateTime (falls vorhanden) dient als Version für den CAS-Write unten. */
+async function usageGetRaw(
+  uid: string,
+): Promise<{ data: UsageDoc; updateTime: string | null } | null> {
   const t = await accessToken();
   const res = await fetch(`${DOC_BASE()}/usage/${uid}`, {
     headers: { authorization: `Bearer ${t}` },
@@ -142,39 +150,106 @@ export async function usageGet(uid: string): Promise<{ day?: string; count?: num
     console.error("usageGet:", res.status, await res.text());
     throw new AuthzError("SERVER_UNCONFIGURED", "Zähler nicht lesbar.");
   }
-  const j = (await res.json()) as { fields?: Record<string, { stringValue?: string; integerValue?: string }> };
+  const j = (await res.json()) as {
+    fields?: Record<string, { stringValue?: string; integerValue?: string }>;
+    updateTime?: string;
+  };
   const f = j.fields || {};
   return {
-    day: f.day?.stringValue,
-    count: f.count?.integerValue ? Number(f.count.integerValue) : 0,
+    data: {
+      day: f.day?.stringValue,
+      count: f.count?.integerValue ? Number(f.count.integerValue) : 0,
+    },
+    updateTime: j.updateTime ?? null,
   };
 }
 
-/** usage/{uid} setzen (überschreibt day/count/email/owner). */
-export async function usageSet(
+/** usage/{uid} per Compare-and-Swap schreiben: die Bedingung (Dokument fehlt
+ *  bzw. exakt dieser updateTime) wird atomar in derselben :commit-Anfrage
+ *  geprüft. Gibt false zurück, wenn der Stand inzwischen woanders geändert
+ *  wurde (Aufrufer soll dann neu lesen und erneut versuchen). */
+async function usageWriteIfUnchanged(
   uid: string,
+  updateTime: string | null,
   data: { day: string; count: number; email: string; owner: boolean },
-): Promise<void> {
+): Promise<boolean> {
   const t = await accessToken();
+  const name = `projects/${PROJECT_ID}/databases/(default)/documents/usage/${uid}`;
+  const write = {
+    update: {
+      name,
+      fields: {
+        day: { stringValue: data.day },
+        count: { integerValue: String(data.count) },
+        email: { stringValue: data.email },
+        owner: { booleanValue: data.owner },
+        updatedAt: { timestampValue: new Date().toISOString() },
+      },
+    },
+    updateMask: { fieldPaths: ["day", "count", "email", "owner", "updatedAt"] },
+    currentDocument: updateTime ? { updateTime } : { exists: false },
+  };
+
   const res = await fetch(
-    `${DOC_BASE()}/usage/${uid}?updateMask.fieldPaths=day&updateMask.fieldPaths=count&updateMask.fieldPaths=email&updateMask.fieldPaths=owner&updateMask.fieldPaths=updatedAt`,
+    `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:commit`,
     {
-      method: "PATCH",
+      method: "POST",
       headers: { authorization: `Bearer ${t}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        fields: {
-          day: { stringValue: data.day },
-          count: { integerValue: String(data.count) },
-          email: { stringValue: data.email },
-          owner: { booleanValue: data.owner },
-          updatedAt: { timestampValue: new Date().toISOString() },
-        },
-      }),
+      body: JSON.stringify({ writes: [write] }),
     },
   );
-  if (!res.ok) {
-    console.error("usageSet:", res.status, await res.text());
+  if (res.status === 409 || res.status === 400) {
+    // Vorbedingung verletzt (Dokument existiert bereits / hat sich geändert seit dem Lesen).
+    const body = await res.text();
+    if (/FAILED_PRECONDITION|ALREADY_EXISTS/i.test(body)) return false;
+    console.error("usageWriteIfUnchanged:", res.status, body);
     throw new AuthzError("SERVER_UNCONFIGURED", "Zähler nicht schreibbar.");
+  }
+  if (!res.ok) {
+    console.error("usageWriteIfUnchanged:", res.status, await res.text());
+    throw new AuthzError("SERVER_UNCONFIGURED", "Zähler nicht schreibbar.");
+  }
+  return true;
+}
+
+export type UsageCasResult =
+  | { ok: true; count: number }
+  | { ok: false; reason: "limit_exceeded"; count: number }
+  | { ok: false; reason: "conflict" };
+
+/**
+ * Ein Versuch, den Tageszähler für `uid` atomar um eins hochzuzählen: liest
+ * den aktuellen Stand, lässt den Aufrufer daraus den neuen Wert berechnen
+ * (oder das Limit erklären), und schreibt nur, wenn sich der Dokumentstand
+ * seit dem Lesen nicht geändert hat (Compare-and-Swap statt read-then-write —
+ * schließt die Lücke, durch die gleichzeitige Anfragen das Limit umgehen
+ * konnten). Bei "conflict" soll der Aufrufer es erneut versuchen.
+ */
+export async function usageTryIncrement(
+  uid: string,
+  makeWrite: (
+    current: UsageDoc | null,
+  ) => { day: string; count: number; email: string; owner: boolean } | { limitExceeded: number },
+): Promise<UsageCasResult> {
+  const current = await usageGetRaw(uid);
+  const decision = makeWrite(current?.data ?? null);
+  if ("limitExceeded" in decision) {
+    return { ok: false, reason: "limit_exceeded", count: decision.limitExceeded };
+  }
+  const ok = await usageWriteIfUnchanged(uid, current?.updateTime ?? null, decision);
+  if (!ok) return { ok: false, reason: "conflict" };
+  return { ok: true, count: decision.count };
+}
+
+/** usage/{uid} löschen (beim Konto-Löschen). Kein Fehler, wenn es nicht existiert. */
+export async function usageDelete(uid: string): Promise<void> {
+  const t = await accessToken();
+  const res = await fetch(`${DOC_BASE()}/usage/${uid}`, {
+    method: "DELETE",
+    headers: { authorization: `Bearer ${t}` },
+  });
+  if (!res.ok && res.status !== 404) {
+    console.error("usageDelete:", res.status, await res.text());
   }
 }
 

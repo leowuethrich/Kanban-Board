@@ -119,9 +119,10 @@ export async function changePassword(
 }
 
 /**
- * Konto endgültig löschen: erst das Board-Dokument in Firestore, dann den
- * Firebase-Auth-Nutzer. Verlangt das aktuelle Passwort (Firebase erzwingt
- * eine frische Anmeldung für deleteUser).
+ * Konto endgültig löschen: erst das Board-Dokument und den AI-Tageszähler in
+ * Firestore, dann den Firebase-Auth-Nutzer. Verlangt das aktuelle Passwort
+ * (Firebase erzwingt eine frische Anmeldung für deleteUser). Aufräumen der
+ * Firestore-Daten läuft VOR deleteUser, solange das ID-Token noch gültig ist.
  */
 export async function deleteAccount(currentPassword: string): Promise<void> {
   const user = await reauth(currentPassword);
@@ -129,6 +130,16 @@ export async function deleteAccount(currentPassword: string): Promise<void> {
     await deleteBoard(user.uid);
   } catch {
     // Board-Löschung nicht kritisch für den Konto-Abbau — weiter.
+  }
+  try {
+    const token = await user.getIdToken();
+    await fetch("/api/account/delete-usage", {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}` },
+    });
+  } catch {
+    // Auch der Zähler ist nicht kritisch — ein verwaistes Dokument ist kein
+    // Sicherheitsproblem, nur nicht ganz sauber.
   }
   try {
     await deleteUser(user);

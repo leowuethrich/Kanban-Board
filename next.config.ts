@@ -40,6 +40,10 @@ const csp = [
   "frame-ancestors 'none'",
   "object-src 'none'",
   "upgrade-insecure-requests",
+  // Verstöße an /api/csp-report melden — sonst merkt niemand, wenn die Policy
+  // mal etwas Legitimes blockiert (neue Firebase-Domain, Browser-Extension …).
+  "report-to csp-endpoint",
+  "report-uri /api/csp-report",
 ].join("; ");
 
 const nextConfig: NextConfig = {
@@ -55,6 +59,12 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: [
           { key: "Content-Security-Policy", value: csp },
+          // Reporting-API-Gegenstück zu "report-to csp-endpoint" oben — sagt
+          // dem Browser, wohin csp-endpoint-Reports gehen (max_age in Sek.).
+          {
+            key: "Reporting-Endpoints",
+            value: 'csp-endpoint="/api/csp-report"',
+          },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
