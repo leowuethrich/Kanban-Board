@@ -131,18 +131,53 @@ async function accessToken(): Promise<string> {
 const DOC_BASE = () =>
   `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
-interface UsageDoc {
-  day?: string;
-  count?: number;
+/**
+ * Roh-Stand eines usage-Dokuments. `hits` ist eine sortierte Liste der
+ * Zeitstempel (epoch ms) der letzten Aufrufe — daraus lassen sich Minuten-,
+ * Stunden- und Tageslimits sowie ein Mindestabstand in einem Schritt prüfen.
+ * `day`/`count` bleiben als schneller Tageszähler erhalten.
+ */
+export interface UsageDoc {
+  day: string;
+  count: number;
+  hits: number[];
 }
 
-/** Ein usage/{uid}-Dokument lesen. null wenn nicht vorhanden.
- *  updateTime (falls vorhanden) dient als Version für den CAS-Write unten. */
+const EMPTY_USAGE: UsageDoc = { day: "", count: 0, hits: [] };
+
+function parseUsage(
+  j: {
+    fields?: Record<
+      string,
+      {
+        stringValue?: string;
+        integerValue?: string;
+        arrayValue?: { values?: { integerValue?: string; doubleValue?: number }[] };
+      }
+    >;
+    updateTime?: string;
+  } | null,
+): { data: UsageDoc; updateTime: string | null } | null {
+  if (!j) return null;
+  const f = j.fields || {};
+  const hits = (f.hits?.arrayValue?.values || [])
+    .map((v) => Number(v.integerValue ?? v.doubleValue ?? 0))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  return {
+    data: {
+      day: f.day?.stringValue ?? "",
+      count: f.count?.integerValue ? Number(f.count.integerValue) : 0,
+      hits,
+    },
+    updateTime: j.updateTime ?? null,
+  };
+}
+
 async function usageGetRaw(
-  uid: string,
+  docId: string,
 ): Promise<{ data: UsageDoc; updateTime: string | null } | null> {
   const t = await accessToken();
-  const res = await fetch(`${DOC_BASE()}/usage/${uid}`, {
+  const res = await fetch(`${DOC_BASE()}/usage/${docId}`, {
     headers: { authorization: `Bearer ${t}` },
   });
   if (res.status === 404) return null;
@@ -150,43 +185,38 @@ async function usageGetRaw(
     console.error("usageGet:", res.status, await res.text());
     throw new AuthzError("SERVER_UNCONFIGURED", "Zähler nicht lesbar.");
   }
-  const j = (await res.json()) as {
-    fields?: Record<string, { stringValue?: string; integerValue?: string }>;
-    updateTime?: string;
-  };
-  const f = j.fields || {};
-  return {
-    data: {
-      day: f.day?.stringValue,
-      count: f.count?.integerValue ? Number(f.count.integerValue) : 0,
-    },
-    updateTime: j.updateTime ?? null,
-  };
+  return parseUsage(await res.json());
 }
 
-/** usage/{uid} per Compare-and-Swap schreiben: die Bedingung (Dokument fehlt
- *  bzw. exakt dieser updateTime) wird atomar in derselben :commit-Anfrage
- *  geprüft. Gibt false zurück, wenn der Stand inzwischen woanders geändert
- *  wurde (Aufrufer soll dann neu lesen und erneut versuchen). */
+/** usage/{docId} per Compare-and-Swap schreiben (siehe usageTryConsume). */
 async function usageWriteIfUnchanged(
-  uid: string,
+  docId: string,
   updateTime: string | null,
-  data: { day: string; count: number; email: string; owner: boolean },
+  data: UsageDoc & { email?: string; owner?: boolean },
 ): Promise<boolean> {
   const t = await accessToken();
-  const name = `projects/${PROJECT_ID}/databases/(default)/documents/usage/${uid}`;
-  const write = {
-    update: {
-      name,
-      fields: {
-        day: { stringValue: data.day },
-        count: { integerValue: String(data.count) },
-        email: { stringValue: data.email },
-        owner: { booleanValue: data.owner },
-        updatedAt: { timestampValue: new Date().toISOString() },
-      },
+  const name = `projects/${PROJECT_ID}/databases/(default)/documents/usage/${docId}`;
+  const fields: Record<string, unknown> = {
+    day: { stringValue: data.day },
+    count: { integerValue: String(data.count) },
+    hits: {
+      arrayValue: { values: data.hits.map((n) => ({ integerValue: String(n) })) },
     },
-    updateMask: { fieldPaths: ["day", "count", "email", "owner", "updatedAt"] },
+    updatedAt: { timestampValue: new Date().toISOString() },
+  };
+  const mask = ["day", "count", "hits", "updatedAt"];
+  if (data.email !== undefined) {
+    fields.email = { stringValue: data.email };
+    mask.push("email");
+  }
+  if (data.owner !== undefined) {
+    fields.owner = { booleanValue: data.owner };
+    mask.push("owner");
+  }
+
+  const write = {
+    update: { name, fields },
+    updateMask: { fieldPaths: mask },
     currentDocument: updateTime ? { updateTime } : { exists: false },
   };
 
@@ -199,7 +229,6 @@ async function usageWriteIfUnchanged(
     },
   );
   if (res.status === 409 || res.status === 400) {
-    // Vorbedingung verletzt (Dokument existiert bereits / hat sich geändert seit dem Lesen).
     const body = await res.text();
     if (/FAILED_PRECONDITION|ALREADY_EXISTS/i.test(body)) return false;
     console.error("usageWriteIfUnchanged:", res.status, body);
@@ -213,32 +242,29 @@ async function usageWriteIfUnchanged(
 }
 
 export type UsageCasResult =
-  | { ok: true; count: number }
-  | { ok: false; reason: "limit_exceeded"; count: number }
+  | { ok: true }
+  | { ok: false; reason: "limit"; message: string }
   | { ok: false; reason: "conflict" };
 
 /**
- * Ein Versuch, den Tageszähler für `uid` atomar um eins hochzuzählen: liest
- * den aktuellen Stand, lässt den Aufrufer daraus den neuen Wert berechnen
- * (oder das Limit erklären), und schreibt nur, wenn sich der Dokumentstand
- * seit dem Lesen nicht geändert hat (Compare-and-Swap statt read-then-write —
- * schließt die Lücke, durch die gleichzeitige Anfragen das Limit umgehen
- * konnten). Bei "conflict" soll der Aufrufer es erneut versuchen.
+ * Ein Versuch, einen Aufruf für `docId` zu verbuchen: liest den aktuellen
+ * Stand, lässt `decide` daraus den neuen Stand berechnen (oder das Limit
+ * erklären), und schreibt nur, wenn sich das Dokument seit dem Lesen nicht
+ * geändert hat (Compare-and-Swap). Bei "conflict" soll der Aufrufer erneut
+ * versuchen.
  */
-export async function usageTryIncrement(
-  uid: string,
-  makeWrite: (
-    current: UsageDoc | null,
-  ) => { day: string; count: number; email: string; owner: boolean } | { limitExceeded: number },
+export async function usageTryConsume(
+  docId: string,
+  decide: (
+    current: UsageDoc,
+  ) => (UsageDoc & { email?: string; owner?: boolean }) | { deny: string },
 ): Promise<UsageCasResult> {
-  const current = await usageGetRaw(uid);
-  const decision = makeWrite(current?.data ?? null);
-  if ("limitExceeded" in decision) {
-    return { ok: false, reason: "limit_exceeded", count: decision.limitExceeded };
-  }
-  const ok = await usageWriteIfUnchanged(uid, current?.updateTime ?? null, decision);
+  const current = await usageGetRaw(docId);
+  const decision = decide(current?.data ?? EMPTY_USAGE);
+  if ("deny" in decision) return { ok: false, reason: "limit", message: decision.deny };
+  const ok = await usageWriteIfUnchanged(docId, current?.updateTime ?? null, decision);
   if (!ok) return { ok: false, reason: "conflict" };
-  return { ok: true, count: decision.count };
+  return { ok: true };
 }
 
 /** usage/{uid} löschen (beim Konto-Löschen). Kein Fehler, wenn es nicht existiert. */
