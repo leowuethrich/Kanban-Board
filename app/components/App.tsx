@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { TABS } from "@/lib/constants";
 import { MOBILE_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
-import { initialState, reducer } from "@/lib/store";
+import { boardSnapshot, initialState, reducer, type BoardSnapshot } from "@/lib/store";
 import {
   onAuthChange,
   refreshUser,
@@ -49,10 +49,35 @@ export function App() {
   const [overCol, setOverCol] = useState<ColId | null>(null);
   const [draft, setDraft] = useState("");
   const [thinking, setThinking] = useState(false);
+  const [undo, setUndo] = useState<{ label: string; snapshot: BoardSnapshot; key: number } | null>(
+    null,
+  );
   const stateRef = useRef(state);
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  // Undo-Toast nach ~7 s automatisch schließen.
+  useEffect(() => {
+    if (!undo) return;
+    const t = setTimeout(() => setUndo(null), 7000);
+    return () => clearTimeout(t);
+  }, [undo]);
+
+  // Destruktive Aktion mit „Rückgängig"-Angebot ausführen: Schnappschuss des
+  // Daten-Teils sichern, dann mutieren.
+  const withUndo = useCallback((label: string, mutate: () => void) => {
+    const snapshot = boardSnapshot(stateRef.current);
+    mutate();
+    setUndo({ label, snapshot, key: Date.now() });
+  }, []);
+
+  const doUndo = useCallback(() => {
+    setUndo((u) => {
+      if (u) dispatch({ type: "restoreSnapshot", snapshot: u.snapshot });
+      return null;
+    });
+  }, []);
 
   const currentUser = auth.status === "in" ? auth.user : null;
   const syncStatus = useBoardSync({ uid: currentUser?.uid ?? null, state, dispatch });
@@ -183,21 +208,40 @@ export function App() {
     [runAi, chatContext],
   );
 
-  const applyAi = useCallback((action: ApplyAction) => {
-    dispatch({ type: "applyAi", action });
-    if (action.type === "ingest") {
-      setView(action.stories.length ? "stories" : "board");
-    }
-    if (action.type === "deriveTasks" || action.type === "syncStory" || action.type === "reorderTasks") {
-      setView("board");
-    }
-    if (action.type === "createTask") {
-      setView("board");
-    }
-    if (action.type === "appendTaskAcs" && action.openEditor) {
-      setEditing({ kind: "task", id: action.taskId });
-    }
-  }, []);
+  const applyAi = useCallback(
+    (action: ApplyAction) => {
+      const label = {
+        ingest: "Projekt übernommen",
+        createTask: "Aufgabe erstellt",
+        deriveTasks: "Tasks abgeleitet",
+        syncStory: "Story abgeglichen",
+        appendTaskAcs: "Kriterien ergänzt",
+        setTaskPoints: "Schätzung übernommen",
+        reorderTasks: "Reihenfolge geändert",
+      }[action.type];
+
+      withUndo(label, () => {
+        dispatch({ type: "applyAi", action });
+        if (action.type === "ingest") {
+          setView(action.stories.length ? "stories" : "board");
+        }
+        if (
+          action.type === "deriveTasks" ||
+          action.type === "syncStory" ||
+          action.type === "reorderTasks"
+        ) {
+          setView("board");
+        }
+        if (action.type === "createTask") {
+          setView("board");
+        }
+        if (action.type === "appendTaskAcs" && action.openEditor) {
+          setEditing({ kind: "task", id: action.taskId });
+        }
+      });
+    },
+    [withUndo],
+  );
 
   // ── CRUD ──────────────────────────────────────────────────
   const addTask = useCallback((col: ColId) => {
@@ -469,7 +513,7 @@ export function App() {
           onDelete={() => {
             const id = editingTask.id;
             setEditing(null);
-            dispatch({ type: "deleteTask", id });
+            withUndo("Aufgabe gelöscht", () => dispatch({ type: "deleteTask", id }));
           }}
           onClose={() => setEditing(null)}
         />
@@ -501,13 +545,86 @@ export function App() {
           onDelete={() => {
             const id = editingStory.id;
             setEditing(null);
-            dispatch({ type: "deleteStory", id });
+            withUndo("Story gelöscht", () => dispatch({ type: "deleteStory", id }));
           }}
           onClose={() => setEditing(null)}
         />
       )}
 
+      {undo && <UndoToast label={undo.label} onUndo={doUndo} onDismiss={() => setUndo(null)} />}
+
       <SiteFooter />
+    </div>
+  );
+}
+
+function UndoToast({
+  label,
+  onUndo,
+  onDismiss,
+}: {
+  label: string;
+  onUndo: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div
+      role="status"
+      style={{
+        position: "fixed",
+        left: "50%",
+        bottom: "calc(var(--space-6) + 28px)",
+        transform: "translateX(-50%)",
+        zIndex: 90,
+        display: "flex",
+        alignItems: "center",
+        gap: "var(--space-3)",
+        background: "var(--color-neutral-900)",
+        color: "var(--color-neutral-100)",
+        padding: "var(--space-2) var(--space-2) var(--space-2) var(--space-4)",
+        borderRadius: 999,
+        boxShadow: "var(--shadow-lg)",
+        fontFamily: "var(--font-body)",
+        fontSize: 14,
+        maxWidth: "calc(100vw - var(--space-6))",
+        animation: "om-in .2s ease both",
+      }}
+    >
+      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        {label}
+      </span>
+      <button
+        onClick={onUndo}
+        style={{
+          flex: "none",
+          border: 0,
+          cursor: "pointer",
+          background: "var(--color-accent)",
+          color: "var(--color-bg)",
+          fontFamily: "var(--font-heading)",
+          fontSize: 13,
+          padding: "6px 14px",
+          borderRadius: 999,
+        }}
+      >
+        Rückgängig
+      </button>
+      <button
+        onClick={onDismiss}
+        aria-label="Schließen"
+        style={{
+          flex: "none",
+          border: 0,
+          cursor: "pointer",
+          background: "transparent",
+          color: "var(--color-neutral-400)",
+          fontSize: 16,
+          padding: "4px 10px",
+          borderRadius: 999,
+        }}
+      >
+        ✕
+      </button>
     </div>
   );
 }

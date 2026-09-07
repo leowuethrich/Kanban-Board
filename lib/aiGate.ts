@@ -50,7 +50,7 @@ function today(): string {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
 }
 
-interface Tier {
+export interface Tier {
   minIntervalMs: number;
   perMin: number;
   perHour: number;
@@ -58,8 +58,8 @@ interface Tier {
 }
 
 /** Prüft die gleitenden Fenster gegen `now`. Gibt eine Ablehnungsmeldung
- *  zurück oder null, wenn der Aufruf erlaubt ist. */
-function windowDenial(hits: number[], now: number, t: Tier, owner: boolean): string | null {
+ *  zurück oder null, wenn der Aufruf erlaubt ist. (exportiert für Tests) */
+export function windowDenial(hits: number[], now: number, t: Tier, owner: boolean): string | null {
   const last = hits.length ? hits[hits.length - 1] : 0;
   if (now - last < t.minIntervalMs) {
     const wait = Math.ceil((t.minIntervalMs - (now - last)) / 1000);
@@ -80,7 +80,9 @@ function windowDenial(hits: number[], now: number, t: Tier, owner: boolean): str
   return null;
 }
 
-function nextHits(hits: number[], now: number): number[] {
+/** Neuer hits-Stand: alter als ein Tag rausfiltern, `now` anhängen, kappen.
+ *  (exportiert für Tests) */
+export function nextHits(hits: number[], now: number): number[] {
   // alles älter als ein Tag ist für keine Prüfung mehr relevant
   const pruned = hits.filter((h) => now - h < DAY);
   pruned.push(now);

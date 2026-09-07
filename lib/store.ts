@@ -91,7 +91,29 @@ export type Action =
   | { type: "setChatMemory"; memory: string }
   | { type: "resetChat" } // archiviert das laufende Gespräch, startet ein neues
   | { type: "restoreChat"; id: number } // legt das aktuelle ab, holt ein archiviertes zurück
-  | { type: "deleteArchivedChat"; id: number };
+  | { type: "deleteArchivedChat"; id: number }
+  // Undo: den Daten-Teil (Tasks/Stories/Order/IDs) auf einen Schnappschuss zurücksetzen
+  | { type: "restoreSnapshot"; snapshot: BoardSnapshot };
+
+/** Der bei destruktiven Aktionen für „Rückgängig" gesicherte Teil. Chat bleibt
+ *  außen vor — der wird nie per Undo zurückgerollt. */
+export interface BoardSnapshot {
+  tasks: Task[];
+  taskOrder: number[];
+  stories: UserStory[];
+  nextTaskId: number;
+  nextStoryId: number;
+}
+
+export function boardSnapshot(state: AppState): BoardSnapshot {
+  return {
+    tasks: state.tasks,
+    taskOrder: state.taskOrder,
+    stories: state.stories,
+    nextTaskId: state.nextTaskId,
+    nextStoryId: state.nextStoryId,
+  };
+}
 
 const ac = (text: string): Ac => ({ text, done: false });
 
@@ -325,6 +347,9 @@ export function reducer(state: AppState, action: Action): AppState {
         ...state,
         archivedChats: state.archivedChats.filter((c) => c.id !== action.id),
       };
+
+    case "restoreSnapshot":
+      return { ...state, ...action.snapshot };
 
     default:
       return state;
